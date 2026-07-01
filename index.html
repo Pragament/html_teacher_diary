@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,763 +8,9 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
     </script>
-    <style>
-        /* ---------- RESET & BASE ---------- */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #f0f4f8;
-            color: #1a202c;
-            min-height: 100vh;
-            padding: 16px;
-        }
-        button {
-            cursor: pointer;
-            font: inherit;
-        }
-        input,
-        select,
-        textarea {
-            font: inherit;
-        }
-
-        /* ---------- APP WRAPPER ---------- */
-        #app {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
-            min-height: 90vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* ---------- HEADER ---------- */
-        .app-header {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            padding: 20px 28px;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            color: #fff;
-        }
-        .app-header h1 {
-            font-size: 22px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .app-header h1 span {
-            font-weight: 400;
-            font-size: 14px;
-            opacity: 0.8;
-            margin-left: 4px;
-        }
-        .header-date {
-            font-size: 15px;
-            opacity: 0.9;
-            background: rgba(255, 255, 255, 0.15);
-            padding: 6px 16px;
-            border-radius: 40px;
-            backdrop-filter: blur(4px);
-        }
-
-        /* ---------- TAB NAV ---------- */
-        .tab-nav {
-            display: flex;
-            gap: 4px;
-            padding: 0 28px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-            flex-wrap: wrap;
-        }
-        .tab-nav button {
-            background: transparent;
-            border: none;
-            padding: 14px 20px;
-            font-size: 15px;
-            font-weight: 600;
-            color: #64748b;
-            border-bottom: 3px solid transparent;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .tab-nav button:hover {
-            color: #1e293b;
-            background: #f1f5f9;
-        }
-        .tab-nav button.active {
-            color: #4f46e5;
-            border-bottom-color: #4f46e5;
-            background: transparent;
-        }
-        .tab-nav button .badge {
-            background: #e2e8f0;
-            color: #475569;
-            font-size: 11px;
-            padding: 0 8px;
-            border-radius: 20px;
-            font-weight: 600;
-        }
-        .tab-nav button.active .badge {
-            background: #4f46e5;
-            color: #fff;
-        }
-
-        /* ---------- TAB CONTENT ---------- */
-        .tab-content {
-            display: none;
-            padding: 28px;
-            flex: 1;
-            animation: fadeIn 0.25s ease;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(8px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* ---------- TOAST ---------- */
-        #toast-container {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-width: 400px;
-            width: 100%;
-        }
-        .toast {
-            padding: 14px 20px;
-            border-radius: 12px;
-            color: #fff;
-            font-weight: 500;
-            font-size: 14px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-            animation: slideUp 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .toast.success {
-            background: #059669;
-        }
-        .toast.error {
-            background: #dc2626;
-        }
-        .toast.info {
-            background: #2563eb;
-        }
-        .toast.warning {
-            background: #d97706;
-        }
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* ---------- CARDS & UTILITY ---------- */
-        .card {
-            background: #fff;
-            border-radius: 14px;
-            border: 1px solid #e2e8f0;
-            padding: 20px 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-        }
-        .card-title {
-            font-size: 17px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #0f172a;
-        }
-        .flex-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 12px;
-        }
-        .flex-between {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-        .gap-8 {
-            gap: 8px;
-        }
-        .mt-12 {
-            margin-top: 12px;
-        }
-        .mb-12 {
-            margin-bottom: 12px;
-        }
-        .text-center {
-            text-align: center;
-        }
-        .text-muted {
-            color: #94a3b8;
-            font-size: 14px;
-        }
-        .text-sm {
-            font-size: 14px;
-        }
-
-        /* ---------- FORM ELEMENTS ---------- */
-        label {
-            font-weight: 600;
-            font-size: 14px;
-            color: #334155;
-            display: block;
-            margin-bottom: 4px;
-        }
-        input[type="text"],
-        input[type="number"],
-        input[type="date"],
-        input[type="password"],
-        select,
-        textarea {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
-            transition: border 0.2s, box-shadow 0.2s;
-            background: #fafbfc;
-        }
-        input:focus,
-        select:focus,
-        textarea:focus {
-            outline: none;
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-            background: #fff;
-        }
-        textarea {
-            resize: vertical;
-            min-height: 50px;
-        }
-        .input-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: center;
-        }
-        .input-group>div {
-            flex: 1;
-            min-width: 160px;
-        }
-
-        /* ---------- BUTTONS ---------- */
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #f1f5f9;
-            color: #1e293b;
-        }
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-        .btn:active {
-            transform: translateY(0);
-        }
-        .btn-primary {
-            background: #4f46e5;
-            color: #fff;
-        }
-        .btn-primary:hover {
-            background: #4338ca;
-        }
-        .btn-success {
-            background: #059669;
-            color: #fff;
-        }
-        .btn-success:hover {
-            background: #047857;
-        }
-        .btn-danger {
-            background: #dc2626;
-            color: #fff;
-        }
-        .btn-danger:hover {
-            background: #b91c1c;
-        }
-        .btn-warning {
-            background: #d97706;
-            color: #fff;
-        }
-        .btn-warning:hover {
-            background: #b45309;
-        }
-        .btn-outline {
-            background: transparent;
-            border: 1.5px solid #e2e8f0;
-        }
-        .btn-outline:hover {
-            background: #f8fafc;
-            border-color: #cbd5e1;
-        }
-        .btn-sm {
-            padding: 6px 14px;
-            font-size: 13px;
-        }
-        .btn-xs {
-            padding: 4px 10px;
-            font-size: 12px;
-        }
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
-        /* ---------- TABLE (Daily Entry) ---------- */
-        .period-table-wrap {
-            overflow-x: auto;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-        }
-        .period-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-        .period-table th {
-            background: #f8fafc;
-            padding: 12px 14px;
-            text-align: left;
-            font-weight: 700;
-            color: #475569;
-            border-bottom: 2px solid #e2e8f0;
-            white-space: nowrap;
-        }
-        .period-table td {
-            padding: 6px 10px;
-            border-bottom: 1px solid #f1f5f9;
-            vertical-align: middle;
-        }
-        .period-table tr:last-child td {
-            border-bottom: none;
-        }
-        .period-table .period-num {
-            font-weight: 700;
-            color: #4f46e5;
-            text-align: center;
-            width: 60px;
-            font-size: 15px;
-        }
-        .period-table input,
-        .period-table textarea {
-            width: 100%;
-            padding: 8px 10px;
-            border: 1.5px solid transparent;
-            border-radius: 8px;
-            font-size: 14px;
-            background: #fafbfc;
-            transition: all 0.2s;
-        }
-        .period-table input:focus,
-        .period-table textarea:focus {
-            border-color: #4f46e5;
-            background: #fff;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
-        }
-        .period-table input::placeholder,
-        .period-table textarea::placeholder {
-            color: #cbd5e1;
-        }
-        .period-table textarea {
-            min-height: 38px;
-            resize: vertical;
-        }
-
-        /* ---------- VIEW ACTIVITIES ---------- */
-        .view-controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-        .view-controls .search-box {
-            flex: 2;
-            min-width: 200px;
-            position: relative;
-        }
-        .view-controls .search-box input {
-            padding-left: 38px;
-        }
-        .view-controls .search-box .search-icon {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #94a3b8;
-            font-size: 18px;
-        }
-        .view-controls .filter-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-        }
-        .view-controls .filter-group input,
-        .view-controls .filter-group select {
-            width: auto;
-            padding: 8px 12px;
-            min-width: 120px;
-        }
-
-        .day-card {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 12px;
-            transition: border 0.2s, box-shadow 0.2s;
-            cursor: default;
-        }
-        .day-card:hover {
-            border-color: #cbd5e1;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        }
-        .day-card .day-header {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-        }
-        .day-card .day-date {
-            font-weight: 700;
-            font-size: 17px;
-            color: #0f172a;
-        }
-        .day-card .day-date small {
-            font-weight: 400;
-            font-size: 13px;
-            color: #94a3b8;
-            margin-left: 8px;
-        }
-        .day-card .day-actions {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-        .day-card .period-list {
-            margin-top: 12px;
-            border-top: 1px solid #f1f5f9;
-            padding-top: 12px;
-            display: none;
-        }
-        .day-card.expanded .period-list {
-            display: block;
-        }
-        .day-card .period-item {
-            display: grid;
-            grid-template-columns: 60px 1fr 1fr 1fr;
-            gap: 10px;
-            padding: 6px 0;
-            font-size: 14px;
-            border-bottom: 1px solid #f8fafc;
-            align-items: start;
-        }
-        .day-card .period-item:last-child {
-            border-bottom: none;
-        }
-        .day-card .period-item .p-label {
-            font-weight: 600;
-            color: #4f46e5;
-        }
-        .day-card .period-item .p-class {
-            font-weight: 500;
-            color: #1e293b;
-        }
-        .day-card .period-item .p-work {
-            color: #475569;
-        }
-        .day-card .period-item .p-home {
-            color: #475569;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 48px 20px;
-            color: #94a3b8;
-        }
-        .empty-state .emoji {
-            font-size: 48px;
-            display: block;
-            margin-bottom: 12px;
-        }
-        .empty-state h3 {
-            font-size: 18px;
-            color: #475569;
-            margin-bottom: 4px;
-        }
-
-        /* ---------- SETTINGS ---------- */
-        .settings-group {
-            border-bottom: 1px solid #f1f5f9;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-        }
-        .settings-group:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        .settings-group .group-title {
-            font-weight: 700;
-            font-size: 16px;
-            color: #0f172a;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .settings-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
-            align-items: flex-end;
-        }
-        .settings-row>div {
-            flex: 1;
-            min-width: 180px;
-        }
-        .settings-row .btn {
-            flex-shrink: 0;
-        }
-        .settings-row label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #475569;
-        }
-        .settings-row input {
-            padding: 8px 12px;
-        }
-        .settings-help {
-            font-size: 13px;
-            color: #94a3b8;
-            margin-top: 4px;
-        }
-
-        /* ---------- RESPONSIVE ---------- */
-        @media (max-width: 768px) {
-            .app-header {
-                padding: 16px 20px;
-                flex-direction: column;
-                align-items: stretch;
-                text-align: center;
-            }
-            .app-header h1 {
-                font-size: 19px;
-                justify-content: center;
-            }
-            .header-date {
-                text-align: center;
-            }
-            .tab-nav {
-                padding: 0 12px;
-                justify-content: center;
-            }
-            .tab-nav button {
-                padding: 10px 14px;
-                font-size: 13px;
-            }
-            .tab-content {
-                padding: 16px;
-            }
-            .card {
-                padding: 16px;
-            }
-            .period-table th,
-            .period-table td {
-                padding: 4px 6px;
-                font-size: 13px;
-            }
-            .period-table .period-num {
-                width: 40px;
-                font-size: 13px;
-            }
-            .period-table input,
-            .period-table textarea {
-                font-size: 13px;
-                padding: 6px 8px;
-            }
-            .day-card .period-item {
-                grid-template-columns: 40px 1fr;
-                gap: 4px 10px;
-                padding: 8px 0;
-            }
-            .day-card .period-item .p-label {
-                grid-column: 1;
-            }
-            .day-card .period-item .p-class {
-                grid-column: 2;
-            }
-            .day-card .period-item .p-work {
-                grid-column: 1 / -1;
-                padding-left: 40px;
-            }
-            .day-card .period-item .p-home {
-                grid-column: 1 / -1;
-                padding-left: 40px;
-            }
-            .settings-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .settings-row>div {
-                min-width: unset;
-            }
-            .view-controls {
-                flex-direction: column;
-            }
-            .view-controls .filter-group {
-                width: 100%;
-            }
-            .view-controls .filter-group input,
-            .view-controls .filter-group select {
-                flex: 1;
-                min-width: 0;
-            }
-            #toast-container {
-                left: 16px;
-                right: 16px;
-                bottom: 16px;
-                max-width: 100%;
-            }
-        }
-        @media (max-width: 480px) {
-            .tab-nav button {
-                font-size: 12px;
-                padding: 8px 10px;
-            }
-            .tab-nav button .badge {
-                font-size: 10px;
-                padding: 0 6px;
-            }
-            .period-table th,
-            .period-table td {
-                font-size: 12px;
-                padding: 3px 4px;
-            }
-            .period-table input,
-            .period-table textarea {
-                font-size: 12px;
-                padding: 4px 6px;
-            }
-            .period-table .period-num {
-                width: 30px;
-                font-size: 12px;
-            }
-        }
-
-        /* ---------- SCROLLBAR ---------- */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 8px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 8px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-
-        /* ---------- LOADING SPINNER ---------- */
-        .spinner {
-            display: inline-block;
-            width: 18px;
-            height: 18px;
-            border: 2.5px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 0.7s linear infinite;
-        }
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* ---------- MISC ---------- */
-        .chip {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            background: #e2e8f0;
-            color: #475569;
-        }
-        .chip-blue {
-            background: #dbeafe;
-            color: #1d4ed8;
-        }
-        .chip-green {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .highlight-match {
-            background: #fef08a;
-            padding: 0 2px;
-            border-radius: 2px;
-        }
-        .hidden {
-            display: none !important;
-        }
-        .w-full {
-            width: 100%;
-        }
-    </style>
+    <link rel="stylesheet" href="css/styles.css?v=2.4" />
 </head>
+
 <body>
 
     <!-- ====== TOAST CONTAINER ====== -->
@@ -774,7 +21,14 @@
         <!-- HEADER -->
         <header class="app-header">
             <h1>📚 Teacher's Planner <span>daily activities</span></h1>
-            <div class="header-date" id="headerDate"></div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;">
+                <div class="header-user-banner hidden" id="headerUserBanner">
+                    <img class="header-user-avatar" id="headerUserAvatar" src="" alt="Profile" style="display:none;" />
+                    <span class="header-user-email" id="headerUserEmail"></span>
+                    <button class="btn-signout" onclick="handleSignOut()">Sign Out</button>
+                </div>
+                <div class="header-date" id="headerDate"></div>
+            </div>
         </header>
 
         <!-- TAB NAV -->
@@ -799,9 +53,10 @@
                         <thead>
                             <tr>
                                 <th style="width:60px;">Period</th>
-                                <th style="min-width:140px;">Class &amp; Section</th>
+                                <th style="min-width:120px;">Class &amp; Section</th>
                                 <th style="min-width:180px;">Classwork</th>
                                 <th style="min-width:180px;">Homework</th>
+                                <th style="width:100px;text-align:center;">Photo</th>
                             </tr>
                         </thead>
                         <tbody id="periodTableBody"></tbody>
@@ -863,7 +118,8 @@
                         <div style="display:flex;flex-wrap:wrap;gap:12px;">
                             <div style="flex:2;min-width:200px;">
                                 <label for="settingsSupabaseUrl">Supabase URL</label>
-                                <input type="text" id="settingsSupabaseUrl" placeholder="https://your-project.supabase.co" />
+                                <input type="text" id="settingsSupabaseUrl"
+                                    placeholder="https://your-project.supabase.co" />
                             </div>
                             <div style="flex:2;min-width:200px;">
                                 <label for="settingsSupabaseKey">Supabase API Key (anon public)</label>
@@ -874,791 +130,188 @@
                                 <input type="text" id="settingsSupabaseTable" placeholder="daily_activities" />
                             </div>
                         </div>
+
                         <div style="display:flex;flex-wrap:wrap;gap:8px;">
                             <button class="btn btn-outline btn-sm" id="settingsSupabaseTest">🔌 Test Connection</button>
                             <button class="btn btn-success btn-sm" id="settingsSupabasePush">⬆ Push to Supabase</button>
-                            <button class="btn btn-primary btn-sm" id="settingsSupabasePull">⬇ Pull from Supabase</button>
-                            <span id="supabaseStatus" class="text-muted text-sm" style="align-self:center;margin-left:4px;"></span>
+                            <button class="btn btn-primary btn-sm" id="settingsSupabasePull">⬇ Pull from
+                                Supabase</button>
+                            <button class="btn btn-outline btn-sm" onclick="loadTestPhoto()"
+                                title="Injects a mock Base64 image into Period 1 for developer testing">🔬 Insert Test
+                                Photo (P1)</button>
+                            <span id="supabaseStatus" class="text-muted text-sm"
+                                style="align-self:center;margin-left:4px;"></span>
                         </div>
-                        <div class="settings-help">Push sends all local data to Supabase. Pull replaces local data with remote data.</div>
-                    </div>
-                </div>
+                        <div class="settings-help">Push sends all local data to Supabase. Pull replaces local data with
+                            remote data.</div>
 
-                <!-- CSV -->
-                <div class="settings-group">
-                    <div class="group-title">📁 Import / Export</div>
-                    <div class="settings-row">
-                        <button class="btn btn-outline" id="settingsExportCSV">📤 Export CSV</button>
-                        <button class="btn btn-outline" id="settingsImportCSV">📥 Import CSV</button>
-                        <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
-                        <span class="text-muted text-sm" style="align-self:center;">Format: date,period_number,class_section,classwork,homework</span>
-                    </div>
-                </div>
+                        <div class="sql-helper-box" id="sqlHelperBox">
+                            <div class="sql-helper-header" onclick="toggleSqlHelper()">
+                                <span>🛠️ Need help setting up Supabase? Show SQL & Setup Instructions</span>
+                                <span class="chevron" id="sqlHelperChevron">▼</span>
+                            </div>
+                            <div class="sql-helper-content" id="sqlHelperContent" style="max-height: 0px;">
+                                <div class="sql-helper-body">
+                                    <p>To connect your planner, follow these steps in your Supabase project:</p>
+                                    <ol style="margin-top: 8px; padding-left: 18px;">
+                                        <li>Go to <strong>SQL Editor</strong> in the left sidebar and click <strong>+
+                                                New Query</strong>.</li>
+                                        <li>Copy and paste the SQL script below, then click <strong>Run</strong>:</li>
+                                    </ol>
+                                    <div class="code-container" id="sqlCodeContainer"
+                                        style="white-space: pre-wrap; font-family: monospace;">-- Drop existing table if
+                                        migrating
+                                        DROP TABLE IF EXISTS daily_activities CASCADE;
 
-                <!-- Danger -->
-                <div class="settings-group">
-                    <div class="group-title">⚠️ Danger Zone</div>
-                    <div class="settings-row">
-                        <button class="btn btn-danger" id="settingsClearAll">🗑 Clear All Data</button>
-                        <span class="text-muted text-sm" style="align-self:center;">This will remove all local activities.</span>
+                                        -- Create secure multi-user daily activities table
+                                        CREATE TABLE daily_activities (
+                                        user_id UUID NOT NULL REFERENCES auth.users(id) DEFAULT auth.uid(),
+                                        date DATE NOT NULL,
+                                        period_number INTEGER NOT NULL,
+                                        class_section TEXT DEFAULT '',
+                                        classwork TEXT DEFAULT '',
+                                        homework TEXT DEFAULT '',
+                                        photo_url TEXT DEFAULT '',
+                                        created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+                                        PRIMARY KEY (user_id, date, period_number)
+                                        );
+
+                                        -- Enable Row Level Security (RLS)
+                                        ALTER TABLE daily_activities ENABLE ROW LEVEL SECURITY;
+
+                                        -- Allow authenticated/anon users to read their own data
+                                        CREATE POLICY "Allow users to read own data"
+                                        ON daily_activities FOR SELECT TO authenticated, anon USING (auth.uid() =
+                                        user_id);
+
+                                        -- Allow authenticated/anon users to modify their own data
+                                        CREATE POLICY "Allow users to modify own data"
+                                        ON daily_activities FOR ALL TO authenticated, anon USING (auth.uid() = user_id)
+                                        WITH CHECK (auth.uid() = user_id);<button class="copy-sql-btn"
+                                            onclick="copySqlScript(event)">📋 Copy SQL</button></div>
+                                    <ol start="3" style="margin-top: 8px; padding-left: 18px;">
+                                        <li>Go to <strong>Storage</strong> in the left sidebar, click <strong>New
+                                                Bucket</strong>. Name it <strong>activity_photos</strong> and make it
+                                            <strong>Public</strong>.
+                                        </li>
+                                        <li>Under Storage, go to <strong>Policies</strong>, find
+                                            <code>activity_photos</code> bucket, click <strong>New Policy</strong>,
+                                            choose <strong>For full customization</strong>, name it, select operations
+                                            <strong>ALL</strong>, target roles <strong>anon, authenticated</strong>, and
+                                            set both <strong>USING</strong> and <strong>WITH CHECK</strong> expressions
+                                            to <code>true</code>.
+                                        </li>
+                                        <li>To enable Google login, navigate to <strong>Authentication > Providers >
+                                                Google</strong>, toggle it on, and paste your Google OAuth Client ID and
+                                            Secret (obtainable from Google Cloud Console).</li>
+                                        <li>Go to <strong>Project Settings > API</strong>, copy your <strong>Project
+                                                URL</strong> and <strong>anon public API key</strong>, and paste them
+                                            into the fields above.</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </section>
+
+            <!-- CSV -->
+            <div class="settings-group">
+                <div class="group-title">📁 Import / Export</div>
+                <div class="settings-row">
+                    <button class="btn btn-outline" id="settingsExportCSV">📤 Export CSV</button>
+                    <button class="btn btn-outline" id="settingsImportCSV">📥 Import CSV</button>
+                    <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+                    <span class="text-muted text-sm" style="align-self:center;">Format:
+                        date,period_number,class_section,classwork,homework,photo_url</span>
+                </div>
+            </div>
+
+            <!-- Danger -->
+            <div class="settings-group">
+                <div class="group-title">⚠️ Danger Zone</div>
+                <div class="settings-row">
+                    <button class="btn btn-danger" id="settingsClearAll">🗑 Clear All Data</button>
+                    <span class="text-muted text-sm" style="align-self:center;">This will remove all local
+                        activities.</span>
+                </div>
+            </div>
+        </div>
+    </section>
     </div>
 
-    <script>
-        // ================================================================
-        //  DATA MANAGER
-        // ================================================================
-        const STORAGE_KEY = 'teacherPlannerData';
+    <script src="js/data.js?v=2.4"></script>
+    <script src="js/toast.js?v=2.4"></script>
+    <script src="js/supabase.js?v=2.4"></script>
+    <script src="js/csv.js?v=2.4"></script>
+    <script src="js/auth.js?v=2.4"></script>
+    <script src="js/ui.js?v=2.4"></script>
+    <script src="js/curriculum.js?v=2.4"></script>
+    <script src="js/autocomplete.js?v=2.4"></script>
+    <script src="js/app.js?v=2.4"></script>
 
-        function getDefaultData() {
-            return {
-                activities: [], // [{ id, date, periods: [{periodNumber, classSection, classwork, homework}] }]
-                settings: {
-                    periodsPerDay: 8,
-                    supabaseUrl: '',
-                    supabaseKey: '',
-                    supabaseTable: 'daily_activities'
-                }
-            };
-        }
+    <!-- ====== AUTH OVERLAY ====== -->
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-card">
+            <span class="auth-logo">🔐</span>
+            <h2 class="auth-title">Teacher Planner Sync</h2>
+            <p class="auth-subtitle">Sign in to your Teacher Planner account</p>
 
-        function loadData() {
-            try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (!raw) return getDefaultData();
-                const parsed = JSON.parse(raw);
-                // ensure settings exist
-                if (!parsed.settings) parsed.settings = getDefaultData().settings;
-                if (!parsed.activities) parsed.activities = [];
-                return parsed;
-            } catch {
-                return getDefaultData();
-            }
-        }
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login-btn" onclick="switchAuthTab('login')">Sign In</button>
+                <button class="auth-tab" id="tab-signup-btn" onclick="switchAuthTab('signup')">Register</button>
+            </div>
 
-        function saveData(data) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        }
-
-        function getSettings() {
-            const data = loadData();
-            return data.settings;
-        }
-
-        function saveSettings(settings) {
-            const data = loadData();
-            data.settings = settings;
-            saveData(data);
-        }
-
-        function getActivities() {
-            const data = loadData();
-            return data.activities;
-        }
-
-        function saveActivities(activities) {
-            const data = loadData();
-            data.activities = activities;
-            saveData(data);
-        }
-
-        function generateId() {
-            return 'day_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-        }
-
-        function formatDate(dateStr) {
-            if (!dateStr) return '';
-            const d = new Date(dateStr + 'T00:00:00');
-            return d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-        }
-
-        function getTodayStr() {
-            const d = new Date();
-            return d.getFullYear() + '-' +
-                String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                String(d.getDate()).padStart(2, '0');
-        }
-
-        function getDayEntry(dateStr) {
-            const activities = getActivities();
-            return activities.find(a => a.date === dateStr) || null;
-        }
-
-        function saveDayEntry(dateStr, periods) {
-            const activities = getActivities();
-            const existing = activities.findIndex(a => a.date === dateStr);
-            const entry = { id: generateId(), date: dateStr, periods: periods };
-            if (existing >= 0) {
-                activities[existing] = entry;
-            } else {
-                activities.push(entry);
-            }
-            saveActivities(activities);
-            return entry;
-        }
-
-        function deleteDayEntry(dateStr) {
-            let activities = getActivities();
-            activities = activities.filter(a => a.date !== dateStr);
-            saveActivities(activities);
-        }
-
-        // ================================================================
-        //  TOAST
-        // ================================================================
-        function showToast(message, type = 'info', duration = 3500) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
-            toast.innerHTML = `${icons[type] || 'ℹ️'} ${message}`;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(10px)';
-                toast.style.transition = 'all 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, duration);
-        }
-
-        // ================================================================
-        //  SUPABASE SERVICE
-        // ================================================================
-        let supabaseClient = null;
-
-        function getSupabaseClient() {
-            const settings = getSettings();
-            if (!settings.supabaseUrl || !settings.supabaseKey) return null;
-            if (!supabaseClient) {
-                try {
-                    supabaseClient = window.supabase.createClient(settings.supabaseUrl, settings.supabaseKey);
-                } catch {
-                    return null;
-                }
-            }
-            return supabaseClient;
-        }
-
-        async function testSupabaseConnection() {
-            const client = getSupabaseClient();
-            if (!client) return { ok: false, error: 'Supabase not configured' };
-            try {
-                const { error } = await client.from(getSettings().supabaseTable || 'daily_activities').select('count', { count:
-                        'exact', head: true });
-                if (error) return { ok: false, error: error.message };
-                return { ok: true };
-            } catch (e) {
-                return { ok: false, error: e.message };
-            }
-        }
-
-        async function pushToSupabase() {
-            const client = getSupabaseClient();
-            if (!client) return { ok: false, error: 'Supabase not configured' };
-            const table = getSettings().supabaseTable || 'daily_activities';
-            const activities = getActivities();
-            // flatten periods
-            const rows = [];
-            for (const day of activities) {
-                for (const p of day.periods) {
-                    rows.push({
-                        date: day.date,
-                        period_number: p.periodNumber,
-                        class_section: p.classSection || '',
-                        classwork: p.classwork || '',
-                        homework: p.homework || ''
-                    });
-                }
-            }
-            if (rows.length === 0) return { ok: true, message: 'No data to push.' };
-            // upsert: use date + period_number as conflict key
-            try {
-                const { error } = await client
-                    .from(table)
-                    .upsert(rows, { onConflict: 'date,period_number' });
-                if (error) return { ok: false, error: error.message };
-                return { ok: true, message: `Pushed ${rows.length} period entries.` };
-            } catch (e) {
-                return { ok: false, error: e.message };
-            }
-        }
-
-        async function pullFromSupabase() {
-            const client = getSupabaseClient();
-            if (!client) return { ok: false, error: 'Supabase not configured' };
-            const table = getSettings().supabaseTable || 'daily_activities';
-            try {
-                const { data, error } = await client
-                    .from(table)
-                    .select('*')
-                    .order('date', { ascending: true });
-                if (error) return { ok: false, error: error.message };
-                if (!data || data.length === 0) return { ok: true, message: 'No data found in Supabase.', data: [] };
-                // group by date
-                const grouped = {};
-                for (const row of data) {
-                    if (!grouped[row.date]) grouped[row.date] = [];
-                    grouped[row.date].push({
-                        periodNumber: row.period_number,
-                        classSection: row.class_section || '',
-                        classwork: row.classwork || '',
-                        homework: row.homework || ''
-                    });
-                }
-                const activities = Object.keys(grouped).map(date => ({
-                    id: generateId(),
-                    date: date,
-                    periods: grouped[date].sort((a, b) => a.periodNumber - b.periodNumber)
-                }));
-                return { ok: true, message: `Pulled ${data.length} period entries (${activities.length} days).`, data: activities };
-            } catch (e) {
-                return { ok: false, error: e.message };
-            }
-        }
-
-        // ================================================================
-        //  CSV
-        // ================================================================
-        function exportCSV() {
-            const activities = getActivities();
-            const rows = [];
-            for (const day of activities) {
-                for (const p of day.periods) {
-                    rows.push([
-                        day.date,
-                        p.periodNumber,
-                        p.classSection || '',
-                        p.classwork || '',
-                        p.homework || ''
-                    ]);
-                }
-            }
-            if (rows.length === 0) {
-                showToast('No data to export.', 'warning');
-                return;
-            }
-            const header = ['date', 'period_number', 'class_section', 'classwork', 'homework'];
-            const csvContent = [header.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))]
-                .join('\n');
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `activities_${getTodayStr()}.csv`;
-            link.click();
-            URL.revokeObjectURL(link.href);
-            showToast(`Exported ${rows.length} entries.`, 'success');
-        }
-
-        function importCSV(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const text = e.target.result;
-                    const lines = text.split('\n').filter(l => l.trim());
-                    if (lines.length < 2) {
-                        showToast('CSV must have a header row and at least one data row.', 'error');
-                        return;
-                    }
-                    const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-                    const dateIdx = header.indexOf('date');
-                    const periodIdx = header.indexOf('period_number');
-                    const classIdx = header.indexOf('class_section');
-                    const workIdx = header.indexOf('classwork');
-                    const homeIdx = header.indexOf('homework');
-                    if (dateIdx < 0 || periodIdx < 0) {
-                        showToast('CSV must have "date" and "period_number" columns.', 'error');
-                        return;
-                    }
-                    const grouped = {};
-                    for (let i = 1; i < lines.length; i++) {
-                        const cols = parseCSVLine(lines[i]);
-                        if (cols.length < 2) continue;
-                        const date = cols[dateIdx]?.trim() || '';
-                        const period = parseInt(cols[periodIdx]?.trim()) || 0;
-                        if (!date || !period) continue;
-                        if (!grouped[date]) grouped[date] = [];
-                        grouped[date].push({
-                            periodNumber: period,
-                            classSection: classIdx >= 0 ? (cols[classIdx]?.trim() || '') : '',
-                            classwork: workIdx >= 0 ? (cols[workIdx]?.trim() || '') : '',
-                            homework: homeIdx >= 0 ? (cols[homeIdx]?.trim() || '') : ''
-                        });
-                    }
-                    const activities = Object.keys(grouped).map(date => ({
-                        id: generateId(),
-                        date: date,
-                        periods: grouped[date].sort((a, b) => a.periodNumber - b.periodNumber)
-                    }));
-                    if (activities.length === 0) {
-                        showToast('No valid data found in CSV.', 'warning');
-                        return;
-                    }
-                    // merge with existing: replace by date
-                    const existing = getActivities();
-                    const newActivities = [...existing];
-                    for (const act of activities) {
-                        const idx = newActivities.findIndex(a => a.date === act.date);
-                        if (idx >= 0) newActivities[idx] = act;
-                        else newActivities.push(act);
-                    }
-                    saveActivities(newActivities);
-                    showToast(`Imported ${activities.length} days from CSV.`, 'success');
-                    renderViewTab();
-                    updateBadge();
-                } catch (err) {
-                    showToast('Error parsing CSV: ' + err.message, 'error');
-                }
-            };
-            reader.readAsText(file, 'UTF-8');
-        }
-
-        // simple CSV line parser (handles quoted fields)
-        function parseCSVLine(line) {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                if (inQuotes) {
-                    if (ch === '"' && (i + 1 < line.length && line[i + 1] === '"')) {
-                        current += '"';
-                        i++;
-                    } else if (ch === '"') {
-                        inQuotes = false;
-                    } else {
-                        current += ch;
-                    }
-                } else {
-                    if (ch === '"') {
-                        inQuotes = true;
-                    } else if (ch === ',') {
-                        result.push(current.trim());
-                        current = '';
-                    } else {
-                        current += ch;
-                    }
-                }
-            }
-            result.push(current.trim());
-            return result;
-        }
-
-        // ================================================================
-        //  UI: DAILY TAB
-        // ================================================================
-        function renderDailyTab() {
-            const dateInput = document.getElementById('dailyDate');
-            if (!dateInput.value) dateInput.value = getTodayStr();
-            const dateStr = dateInput.value;
-            const settings = getSettings();
-            const periodsPerDay = settings.periodsPerDay || 8;
-            const entry = getDayEntry(dateStr);
-            const periods = entry ? entry.periods : [];
-
-            const tbody = document.getElementById('periodTableBody');
-            tbody.innerHTML = '';
-            for (let i = 1; i <= periodsPerDay; i++) {
-                const existing = periods.find(p => p.periodNumber === i) || { periodNumber: i, classSection: '',
-                    classwork: '', homework: '' };
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-              <td class="period-num">${i}</td>
-              <td><input type="text" class="daily-class" data-period="${i}" value="${escHtml(existing.classSection)}" placeholder="e.g. 10-A" /></td>
-              <td><textarea class="daily-work" data-period="${i}" placeholder="What was taught?">${escHtml(existing.classwork)}</textarea></td>
-              <td><textarea class="daily-home" data-period="${i}" placeholder="Homework assigned?">${escHtml(existing.homework)}</textarea></td>
-            `;
-                tbody.appendChild(tr);
-            }
-            document.getElementById('dailyStatus').textContent = entry ? `✅ Loaded entry for ${formatDate(dateStr)}` :
-                `📝 No entry yet for ${formatDate(dateStr)}`;
-        }
-
-        function escHtml(str) {
-            if (!str) return '';
-            return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        }
-
-        function saveDaily() {
-            const dateStr = document.getElementById('dailyDate').value;
-            if (!dateStr) { showToast('Please select a date.', 'warning'); return; }
-            const rows = document.querySelectorAll('#periodTableBody tr');
-            const periods = [];
-            let hasData = false;
-            rows.forEach(tr => {
-                const periodNum = parseInt(tr.querySelector('.period-num')?.textContent || '0');
-                const classVal = tr.querySelector('.daily-class')?.value?.trim() || '';
-                const workVal = tr.querySelector('.daily-work')?.value?.trim() || '';
-                const homeVal = tr.querySelector('.daily-home')?.value?.trim() || '';
-                periods.push({
-                    periodNumber: periodNum,
-                    classSection: classVal,
-                    classwork: workVal,
-                    homework: homeVal
-                });
-                if (classVal || workVal || homeVal) hasData = true;
-            });
-            if (!hasData) {
-                // allow saving empty to clear
-                if (!confirm('All fields are empty. Do you want to clear this day\'s entry?')) return;
-            }
-            saveDayEntry(dateStr, periods);
-            showToast(`✅ Saved activities for ${formatDate(dateStr)}`, 'success');
-            renderDailyTab();
-            updateBadge();
-            // re-render view if visible
-            if (document.getElementById('tab-view').classList.contains('active')) renderViewTab();
-        }
-
-        function copyPreviousDay() {
-            const dateStr = document.getElementById('dailyDate').value;
-            if (!dateStr) { showToast('Please select a date.', 'warning'); return; }
-            const activities = getActivities();
-            // find the previous day (by date, not necessarily consecutive)
-            const sorted = activities.map(a => a.date).sort();
-            const idx = sorted.indexOf(dateStr);
-            let prevDate = null;
-            if (idx > 0) prevDate = sorted[idx - 1];
-            else if (sorted.length > 0 && sorted[0] !== dateStr) prevDate = sorted[sorted.length - 1];
-            if (!prevDate) { showToast('No previous day found to copy from.', 'info'); return; }
-            const prevEntry = getDayEntry(prevDate);
-            if (!prevEntry) { showToast('No data for previous day.', 'info'); return; }
-            // fill current day's table with previous day's data (preserve period numbers)
-            const tbody = document.getElementById('periodTableBody');
-            const rows = tbody.querySelectorAll('tr');
-            rows.forEach(tr => {
-                const periodNum = parseInt(tr.querySelector('.period-num')?.textContent || '0');
-                const prevPeriod = prevEntry.periods.find(p => p.periodNumber === periodNum);
-                if (prevPeriod) {
-                    tr.querySelector('.daily-class').value = prevPeriod.classSection || '';
-                    tr.querySelector('.daily-work').value = prevPeriod.classwork || '';
-                    tr.querySelector('.daily-home').value = prevPeriod.homework || '';
-                }
-            });
-            showToast(`📋 Copied from ${formatDate(prevDate)}`, 'info');
-            document.getElementById('dailyStatus').textContent = `📋 Copied from ${formatDate(prevDate)} — click Save to confirm.`;
-        }
-
-        function resetDaily() {
-            if (!confirm('Reset current day\'s entries? Unsaved changes will be lost.')) return;
-            const dateStr = document.getElementById('dailyDate').value;
-            if (!dateStr) return;
-            // clear the entry
-            const tbody = document.getElementById('periodTableBody');
-            tbody.querySelectorAll('tr').forEach(tr => {
-                tr.querySelector('.daily-class').value = '';
-                tr.querySelector('.daily-work').value = '';
-                tr.querySelector('.daily-home').value = '';
-            });
-            document.getElementById('dailyStatus').textContent = `🔄 Reset for ${formatDate(dateStr)}`;
-            showToast('Reset complete.', 'info');
-        }
-
-        // ================================================================
-        //  UI: VIEW TAB
-        // ================================================================
-        function renderViewTab() {
-            const activities = getActivities();
-            const search = document.getElementById('viewSearch').value.toLowerCase().trim();
-            const dateFrom = document.getElementById('viewDateFrom').value;
-            const dateTo = document.getElementById('viewDateTo').value;
-            const sort = document.getElementById('viewSort').value;
-
-            let filtered = [...activities];
-
-            // search
-            if (search) {
-                filtered = filtered.filter(day => {
-                    const match = day.periods.some(p =>
-                        (p.classSection || '').toLowerCase().includes(search) ||
-                        (p.classwork || '').toLowerCase().includes(search) ||
-                        (p.homework || '').toLowerCase().includes(search)
-                    );
-                    return match || day.date.includes(search);
-                });
-            }
-
-            // date range
-            if (dateFrom) filtered = filtered.filter(d => d.date >= dateFrom);
-            if (dateTo) filtered = filtered.filter(d => d.date <= dateTo);
-
-            // sort
-            filtered.sort((a, b) => {
-                if (sort === 'date-asc') return a.date.localeCompare(b.date);
-                return b.date.localeCompare(a.date);
-            });
-
-            const container = document.getElementById('viewResults');
-            if (filtered.length === 0) {
-                container.innerHTML = `
-              <div class="empty-state">
-                <span class="emoji">📭</span>
-                <h3>No activities found</h3>
-                <p>${activities.length === 0 ? 'Start adding your daily activities in the Daily Entry tab!' : 'Try adjusting your search or filters.'}</p>
-              </div>
-            `;
-                return;
-            }
-
-            let html = '';
-            for (const day of filtered) {
-                const dateDisplay = formatDate(day.date);
-                const periodCount = day.periods.filter(p => p.classSection || p.classwork || p.homework).length;
-                const total = day.periods.length;
-                html += `
-              <div class="day-card" data-date="${day.date}">
-                <div class="day-header" onclick="toggleDayCard(this)">
-                  <span class="day-date">${dateDisplay} <small>${periodCount}/${total} periods filled</small></span>
-                  <div class="day-actions">
-                    <button class="btn btn-outline btn-xs" onclick="editDay('${day.date}')">✏️ Edit</button>
-                    <button class="btn btn-danger btn-xs" onclick="deleteDay('${day.date}')">🗑</button>
-                  </div>
+            <!-- Login / Signup Form -->
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+                <div class="auth-form-group" id="register-name-group" style="display: none;">
+                    <label for="auth-name">Full Name</label>
+                    <input type="text" id="auth-name" placeholder="John Doe" />
                 </div>
-                <div class="period-list">
-                  ${day.periods.map(p => `
-                    <div class="period-item">
-                      <span class="p-label">P${p.periodNumber}</span>
-                      <span class="p-class">${escHtml(p.classSection) || '—'}</span>
-                      <span class="p-work">📖 ${escHtml(p.classwork) || '—'}</span>
-                      <span class="p-home">📝 ${escHtml(p.homework) || '—'}</span>
-                    </div>
-                  `).join('')}
+                <div class="auth-form-group" id="register-subject-group" style="display: none;">
+                    <label for="auth-subject">Subject <span
+                            style="font-size:11px; opacity:0.6;">(Optional)</span></label>
+                    <input type="text" id="auth-subject" placeholder="Mathematics" />
                 </div>
-              </div>
-            `;
-            }
-            container.innerHTML = html;
-        }
+                <div class="auth-form-group">
+                    <label for="auth-email">Email Address</label>
+                    <input type="email" id="auth-email" required placeholder="name@school.com" />
+                </div>
+                <div class="auth-form-group">
+                    <label for="auth-password">Password</label>
+                    <input type="password" id="auth-password" required minlength="6" placeholder="••••••••" />
+                </div>
+                <button type="submit" class="auth-btn-submit" id="auth-submit-btn">Sign In</button>
+            </form>
 
-        function toggleDayCard(el) {
-            const card = el.closest('.day-card');
-            if (card) card.classList.toggle('expanded');
-        }
+            <div class="auth-divider">
+                <span>or</span>
+            </div>
 
-        function editDay(dateStr) {
-            // switch to daily tab and set date
-            document.querySelector('[data-tab="daily"]').click();
-            document.getElementById('dailyDate').value = dateStr;
-            renderDailyTab();
-            showToast(`✏️ Editing ${formatDate(dateStr)}`, 'info');
-        }
+            <button type="button" class="auth-btn-google" id="auth-google-btn" onclick="handleGoogleSignIn(event)" aria-label="Continue with Google">
+                <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                </svg>
+                <span>Continue with Google</span>
+            </button>
 
-        function deleteDay(dateStr) {
-            if (!confirm(`Delete entry for ${formatDate(dateStr)}?`)) return;
-            deleteDayEntry(dateStr);
-            showToast(`🗑 Deleted ${formatDate(dateStr)}`, 'warning');
-            renderViewTab();
-            updateBadge();
-            // if daily tab is showing this date, refresh
-            const dailyDate = document.getElementById('dailyDate').value;
-            if (dailyDate === dateStr) renderDailyTab();
-        }
 
-        // ================================================================
-        //  UI: SETTINGS TAB
-        // ================================================================
-        function loadSettingsUI() {
-            const settings = getSettings();
-            document.getElementById('settingsPeriods').value = settings.periodsPerDay || 8;
-            document.getElementById('settingsSupabaseUrl').value = settings.supabaseUrl || '';
-            document.getElementById('settingsSupabaseKey').value = settings.supabaseKey || '';
-            document.getElementById('settingsSupabaseTable').value = settings.supabaseTable || 'daily_activities';
-        }
 
-        function savePeriodsSetting() {
-            const val = parseInt(document.getElementById('settingsPeriods').value);
-            if (val < 1 || val > 20) { showToast('Please enter a number between 1 and 20.', 'warning'); return; }
-            const settings = getSettings();
-            settings.periodsPerDay = val;
-            saveSettings(settings);
-            showToast(`✅ Periods per day set to ${val}`, 'success');
-            // if daily tab is active, re-render
-            if (document.getElementById('tab-daily').classList.contains('active')) renderDailyTab();
-        }
+            <span class="auth-local-link" onclick="bypassAuthToLocal()"
+                title="Use offline storage locally on this device without syncing">Continue in Offline Local Mode</span>
+        </div>
+    </div>
 
-        function saveSupabaseSettings() {
-            const settings = getSettings();
-            settings.supabaseUrl = document.getElementById('settingsSupabaseUrl').value.trim();
-            settings.supabaseKey = document.getElementById('settingsSupabaseKey').value.trim();
-            settings.supabaseTable = document.getElementById('settingsSupabaseTable').value.trim() || 'daily_activities';
-            saveSettings(settings);
-            // reset client
-            supabaseClient = null;
-            showToast('✅ Supabase settings saved.', 'success');
-            document.getElementById('supabaseStatus').textContent = 'Settings saved.';
-        }
-
-        async function testSupabase() {
-            const statusEl = document.getElementById('supabaseStatus');
-            statusEl.textContent = '⏳ Testing...';
-            saveSupabaseSettings();
-            const result = await testSupabaseConnection();
-            if (result.ok) {
-                statusEl.textContent = '✅ Connected!';
-                showToast('✅ Supabase connection successful!', 'success');
-            } else {
-                statusEl.textContent = '❌ ' + result.error;
-                showToast('❌ Connection failed: ' + result.error, 'error');
-            }
-        }
-
-        async function doPushSupabase() {
-            const statusEl = document.getElementById('supabaseStatus');
-            statusEl.textContent = '⏳ Pushing...';
-            saveSupabaseSettings();
-            const result = await pushToSupabase();
-            if (result.ok) {
-                statusEl.textContent = '✅ ' + (result.message || 'Push complete.');
-                showToast('✅ ' + (result.message || 'Push to Supabase complete!'), 'success');
-            } else {
-                statusEl.textContent = '❌ ' + result.error;
-                showToast('❌ Push failed: ' + result.error, 'error');
-            }
-        }
-
-        async function doPullSupabase() {
-            const statusEl = document.getElementById('supabaseStatus');
-            statusEl.textContent = '⏳ Pulling...';
-            saveSupabaseSettings();
-            const result = await pullFromSupabase();
-            if (result.ok) {
-                if (result.data) {
-                    // merge: replace existing by date
-                    const existing = getActivities();
-                    const merged = [...existing];
-                    for (const act of result.data) {
-                        const idx = merged.findIndex(a => a.date === act.date);
-                        if (idx >= 0) merged[idx] = act;
-                        else merged.push(act);
-                    }
-                    saveActivities(merged);
-                    updateBadge();
-                    if (document.getElementById('tab-view').classList.contains('active')) renderViewTab();
-                    if (document.getElementById('tab-daily').classList.contains('active')) renderDailyTab();
-                }
-                statusEl.textContent = '✅ ' + (result.message || 'Pull complete.');
-                showToast('✅ ' + (result.message || 'Pull from Supabase complete!'), 'success');
-            } else {
-                statusEl.textContent = '❌ ' + result.error;
-                showToast('❌ Pull failed: ' + result.error, 'error');
-            }
-        }
-
-        function clearAllData() {
-            if (!confirm('⚠️ Are you sure you want to delete ALL local activities? This cannot be undone!')) return;
-            if (!confirm('⚠️ Final confirmation: delete all data?')) return;
-            saveActivities([]);
-            updateBadge();
-            renderDailyTab();
-            if (document.getElementById('tab-view').classList.contains('active')) renderViewTab();
-            showToast('🗑 All data cleared.', 'warning');
-        }
-
-        // ================================================================
-        //  UI: BADGE
-        // ================================================================
-        function updateBadge() {
-            const activities = getActivities();
-            const total = activities.reduce((sum, d) => sum + d.periods.filter(p => p.classSection || p.classwork || p.homework)
-                .length, 0);
-            document.getElementById('viewBadge').textContent = total;
-        }
-
-        // ================================================================
-        //  TAB SWITCHING
-        // ================================================================
-        function setupTabs() {
-            document.querySelectorAll('.tab-nav button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const tab = this.dataset.tab;
-                    document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-                    document.getElementById('tab-' + tab).classList.add('active');
-                    // render content
-                    if (tab === 'daily') renderDailyTab();
-                    if (tab === 'view') renderViewTab();
-                    if (tab === 'settings') loadSettingsUI();
-                });
-            });
-        }
-
-        // ================================================================
-        //  INIT
-        // ================================================================
-        function init() {
-            // header date
-            document.getElementById('headerDate').textContent = '📅 ' + formatDate(getTodayStr());
-
-            // tabs
-            setupTabs();
-
-            // daily
-            document.getElementById('dailyDate').addEventListener('change', renderDailyTab);
-            document.getElementById('saveDailyBtn').addEventListener('click', saveDaily);
-            document.getElementById('resetDailyBtn').addEventListener('click', resetDaily);
-            document.getElementById('copyPrevBtn').addEventListener('click', copyPreviousDay);
-
-            // view
-            document.getElementById('viewSearch').addEventListener('input', renderViewTab);
-            document.getElementById('viewDateFrom').addEventListener('change', renderViewTab);
-            document.getElementById('viewDateTo').addEventListener('change', renderViewTab);
-            document.getElementById('viewSort').addEventListener('change', renderViewTab);
-
-            // settings
-            document.getElementById('settingsSavePeriods').addEventListener('click', savePeriodsSetting);
-            document.getElementById('settingsSupabaseTest').addEventListener('click', testSupabase);
-            document.getElementById('settingsSupabasePush').addEventListener('click', doPushSupabase);
-            document.getElementById('settingsSupabasePull').addEventListener('click', doPullSupabase);
-            document.getElementById('settingsExportCSV').addEventListener('click', exportCSV);
-            document.getElementById('settingsImportCSV').addEventListener('click', () => document.getElementById(
-                'csvFileInput').click());
-            document.getElementById('csvFileInput').addEventListener('change', function(e) {
-                if (this.files && this.files[0]) {
-                    importCSV(this.files[0]);
-                    this.value = '';
-                }
-            });
-            document.getElementById('settingsClearAll').addEventListener('click', clearAllData);
-
-            // save supabase settings when fields change (blur)
-            ['settingsSupabaseUrl', 'settingsSupabaseKey', 'settingsSupabaseTable'].forEach(id => {
-                document.getElementById(id).addEventListener('blur', saveSupabaseSettings);
-            });
-
-            // initial render
-            renderDailyTab();
-            renderViewTab();
-            loadSettingsUI();
-            updateBadge();
-
-            // auto-expand first day card on view
-            setTimeout(() => {
-                const firstCard = document.querySelector('.day-card');
-                if (firstCard) firstCard.classList.add('expanded');
-            }, 300);
-
-            // Keyboard shortcut: Ctrl+S to save
-            document.addEventListener('keydown', function(e) {
-                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                    const dailyTab = document.getElementById('tab-daily');
-                    if (dailyTab.classList.contains('active')) {
-                        e.preventDefault();
-                        saveDaily();
-                    }
-                }
-            });
-        }
-
-        // expose some functions globally for inline onclick
-        window.toggleDayCard = toggleDayCard;
-        window.editDay = editDay;
-        window.deleteDay = deleteDay;
-
-        // run
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
+    <!-- ====== LIGHTBOX MODAL ====== -->
+    <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+        <div class="lightbox-container" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <img id="lightbox-img" class="lightbox-image" src="" alt="Activity Photo" />
+        </div>
+    </div>
 </body>
+
 </html>
