@@ -222,7 +222,10 @@ function handleAuthState(session) {
         if (meta.subject) {
             localStorage.setItem('userSubject', meta.subject);
         } else {
-            localStorage.removeItem('userSubject');
+            const localSubj = localStorage.getItem('userSubject');
+            if (!localSubj) {
+                localStorage.removeItem('userSubject');
+            }
         }
         
         // Render Google Profile Avatar if available

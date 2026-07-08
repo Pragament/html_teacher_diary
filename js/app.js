@@ -41,6 +41,28 @@ function init() {
 
     // settings
     document.getElementById('settingsSavePeriods').addEventListener('click', savePeriodsSetting);
+    document.getElementById('settingsSaveSubject').addEventListener('click', saveSubjectSetting);
+    document.getElementById('settingsSaveCurriculumConfig').addEventListener('click', saveCurriculumConfigSetting);
+    const clearCacheBtn = document.getElementById('settingsClearCacheBtn');
+    if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', () => {
+            clearApiCache();
+            showToast('🧹 API Cache cleared!', 'success');
+        });
+    }
+    document.getElementById('settingsRefreshCurriculum').addEventListener('click', () => {
+        loadCurriculumCSV(true);
+        showToast('Refreshing curriculum tags...', 'info');
+    });
+    const retryBtn = document.getElementById('curriculum-retry-btn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => loadCurriculumCSV(true));
+    }
+
+    const seedCurriculumBtn = document.getElementById('settingsSeedCurriculum');
+    if (seedCurriculumBtn) {
+        seedCurriculumBtn.addEventListener('click', seedDatabaseCurriculum);
+    }
     document.getElementById('settingsSupabaseTest').addEventListener('click', testSupabase);
     document.getElementById('settingsSupabasePush').addEventListener('click', doPushSupabase);
     document.getElementById('settingsSupabasePull').addEventListener('click', doPullSupabase);
@@ -61,6 +83,9 @@ function init() {
 
     // setup authentication checking & listeners
     setupAuthListener();
+
+    // Initial fetch of curriculum from CSV database API
+    loadCurriculumCSV();
 
     // initial render
     renderDailyTab();
@@ -102,3 +127,7 @@ window.switchAuthTab = switchAuthTab;
 window.handleAuthSubmit = handleAuthSubmit;
 window.handleSignOut = handleSignOut;
 window.bypassAuthToLocal = bypassAuthToLocal;
+window.saveSubjectSetting = saveSubjectSetting;
+window.saveCurriculumConfigSetting = saveCurriculumConfigSetting;
+window.loadCurriculumCSV = loadCurriculumCSV;
+window.seedDatabaseCurriculum = seedDatabaseCurriculum;
