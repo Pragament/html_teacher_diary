@@ -1,152 +1,157 @@
-window.CURRICULUM_TAGS = {
-  "Telugu": [
-    "వ్యాకరణం",
-    "పద్యాలు",
-    "సంధులు",
-    "సమాసాలు",
-    "జాతీయాలు",
-    "లేఖ రచన",
-    "వ్యాస రచన",
-    "కథలు",
-    "భాషా భాగాలు",
-    "అలంకారాలు",
-    "ఛందస్సు",
-    "పాఠ్యభాగం"
-  ],
-  "Mathematics": [
-    "Ch1_Real_Numbers",
-    "Ch1_Real_Numbers_Introduction",
-    "Ch1_Euclids_Division_Lemma",
-    "Ch1_The_Fundamental_Theorem_of_Arithmetic",
-    "Ch1_Revisiting_Irrational_Numbers",
-    "Ch1_Revisiting_Rational_Numbers",
-    "Ch1_Real_Numbers_Summary",
-    "Ch2_Polynomials",
-    "Ch2_Polynomials_Introduction",
-    "Ch2_Geometrical_Meaning_of_Zeroes",
-    "Ch2_Relationship_Zeroes_Coefficients",
-    "Ch2_Division_Algorithm",
-    "Ch2_Polynomials_Summary",
-    "Ch3_Pair_of_Linear_Equations_in_Two_Variables",
-    "Ch3_Linear_Equations_Introduction",
-    "Ch3_Graphical_Method_of_Solution",
-    "Ch3_Algebraic_Methods",
-    "Ch3_Substitution_Method",
-    "Ch3_Elimination_Method",
-    "Ch3_Cross_Multiplication_Method",
-    "Ch3_Equations_Reducible",
-    "Ch3_Linear_Equations_Summary",
-    "Ch4_Quadratic_Equations",
-    "Ch4_Quadratic_Equations_Introduction",
-    "Ch4_Solution_by_Factorisation",
-    "Ch4_Solution_by_Completing_Square",
-    "Ch4_Nature_of_Roots",
-    "Ch4_Quadratic_Equations_Summary",
-    "Ch5_Arithmetic_Progressions",
-    "Ch5_AP_Introduction",
-    "Ch5_nth_Term_of_AP",
-    "Ch5_Sum_First_n_Terms",
-    "Ch5_AP_Summary",
-    "Ch6_Triangles",
-    "Ch6_Triangles_Introduction",
-    "Ch6_Similar_Figures",
-    "Ch6_Similarity_of_Triangles",
-    "Ch6_Criteria_for_Similarity",
-    "Ch6_Areas_of_Similar_Triangles",
-    "Ch6_Pythagoras_Theorem",
-    "Ch6_Triangles_Summary",
-    "Ch7_Coordinate_Geometry",
-    "Ch7_Coordinate_Geometry_Introduction",
-    "Ch7_Distance_Formula",
-    "Ch7_Section_Formula",
-    "Ch7_Area_of_Triangle",
-    "Ch7_Coordinate_Geometry_Summary",
-    "Ch8_Introduction_to_Trigonometry",
-    "Ch8_Trigonometry_Introduction",
-    "Ch8_Trigonometric_Ratios",
-    "Ch8_Ratios_Specific_Angles",
-    "Ch8_Ratios_Complementary_Angles",
-    "Ch8_Trigonometric_Identities",
-    "Ch8_Trigonometry_Summary",
-    "Ch9_Some_Applications_of_Trigonometry",
-    "Ch9_Applications_Introduction",
-    "Ch9_Heights_and_Distances",
-    "Ch9_Trigonometry_Applications_Summary",
-    "Ch10_Circles",
-    "Ch10_Circles_Introduction",
-    "Ch10_Tangent_to_Circle",
-    "Ch10_Number_of_Tangents",
-    "Ch10_Circles_Summary",
-    "Ch11_Constructions",
-    "Ch11_Constructions_Introduction",
-    "Ch11_Division_of_Line_Segment",
-    "Ch11_Construction_of_Tangents",
-    "Ch11_Constructions_Summary",
-    "Ch12_Areas_Related_to_Circles",
-    "Ch12_Areas_Related_Circles_Introduction",
-    "Ch12_Perimeter_and_Area_Review",
-    "Ch12_Areas_Sector_and_Segment",
-    "Ch12_Areas_Combinations_Plane_Figures",
-    "Ch12_Areas_Related_Circles_Summary",
-    "Ch13_Surface_Areas_and_Volumes",
-    "Ch13_Surface_Areas_Volumes_Introduction",
-    "Ch13_Surface_Area_Combination_Solids",
-    "Ch13_Volume_Combination_Solids",
-    "Ch13_Conversion_of_Solid",
-    "Ch13_Frustum_of_Cone",
-    "Ch13_Surface_Areas_Volumes_Summary",
-    "Ch14_Statistics",
-    "Ch14_Statistics_Introduction",
-    "Ch14_Mean_of_Grouped_Data",
-    "Ch14_Mode_of_Grouped_Data",
-    "Ch14_Median_of_Grouped_Data",
-    "Ch14_Graphical_Representation",
-    "Ch14_Statistics_Summary",
-    "Ch15_Probability",
-    "Ch15_Probability_Introduction",
-    "Ch15_Theoretical_Approach",
-    "Ch15_Probability_Summary"
-  ],
-  "Science": [
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "Photosynthesis",
-    "Gravity",
-    "Periodic Table",
-    "Ecosystem",
-    "Genetics",
-    "Forces & Motion",
-    "Cell Structure",
-    "Chemical Reactions",
-    "Light & Reflection",
-    "Electricity"
-  ],
-  "English": [
-    "Grammar",
-    "Tenses",
-    "Vocabulary",
-    "Reading Comprehension",
-    "Writing Skills",
-    "Poetry",
-    "Prose",
-    "Prepositions",
-    "Adjectives",
-    "Nouns & Verbs",
-    "Direct & Indirect Speech",
-    "Active & Passive Voice"
-  ],
-  "Social Studies": [
-    "History",
-    "Geography",
-    "Civics",
-    "Economics",
-    "French Revolution",
-    "Indian Constitution",
-    "Map Work",
-    "Climate Change",
-    "World War I",
-    "World War II",
-    "Democracy"
-  ]
-};
+// ================================================================
+//  CURRICULUM TAGS — populated ONLY from API, never hardcoded
+// ================================================================
+window.CURRICULUM_TAGS = {};
+
+window.isCurriculumFetched = false;
+
+// ================================================================
+//  MAIN LOADER — fetches curriculum tags via API URLs
+// ================================================================
+async function loadCurriculumCSV(force = false) {
+    if (window.isCurriculumFetched && !force) return;
+
+    const banner = document.getElementById('curriculum-status-banner');
+    const text = document.getElementById('curriculum-status-text');
+    const retryBtn = document.getElementById('curriculum-retry-btn');
+
+    if (banner) {
+        banner.className = 'curriculum-status-banner loading';
+        text.textContent = '🔄 Loading curriculum from API...';
+        if (retryBtn) retryBtn.classList.add('hidden');
+        banner.classList.remove('hidden');
+    }
+
+    const settings = getSettings();
+    const board = settings.curriculumBoard || 'CBSE';
+    const className = settings.curriculumClass || '10';
+    const subject = settings.curriculumSubject || 'Mathematics';
+
+    console.log(`Curriculum: fetching tags from API → board=${board}, class=${className}, subject=${subject}`);
+
+    try {
+        const boardKey = board.toLowerCase();
+        const classKey = className.toLowerCase();
+        const subjectMap = {
+            'mathematics': 'math',
+            'math': 'math',
+            'science': 'science',
+            'social studies': 'social',
+            'social': 'social',
+            'telugu': 'telugu',
+            'english': 'english',
+            'hindi': 'hindi'
+        };
+        const subjectKey = subjectMap[subject.toLowerCase()] || subject.toLowerCase();
+        const apiUrl = `https://staticapis.pragament.com/lms/${boardKey}/${classKey}/${subjectKey}/topics.json`;
+        const storageKey = `curriculum_topics_${boardKey}_${classKey}_${subjectKey}`;
+
+        // Automatically check if stored topics exist. If not, fetch them from the URL!
+        let storedTopics = localStorage.getItem(storageKey);
+        if (!storedTopics || force) {
+            console.log(`Curriculum: No cached topics. Fetching from API: ${apiUrl}`);
+            try {
+                const response = await fetch(apiUrl);
+                if (response.ok) {
+                    const topics = await response.json();
+                    localStorage.setItem(storageKey, JSON.stringify(topics));
+                    storedTopics = JSON.stringify(topics);
+                } else {
+                    throw new Error(`Live API returned non-OK status: ${response.status}`);
+                }
+            } catch (err) {
+                console.warn("Live API fetch failed. Trying local topics.json fallback...", err);
+                try {
+                    const localResponse = await fetch('js/topics.json');
+                    if (localResponse.ok) {
+                        const topics = await localResponse.json();
+                        localStorage.setItem(storageKey, JSON.stringify(topics));
+                        storedTopics = JSON.stringify(topics);
+                        console.log("Curriculum: Loaded topics from local topics.json file.");
+                    }
+                } catch (localErr) {
+                    console.error("Local topics.json fallback also failed:", localErr);
+                }
+            }
+        }
+
+        let tags = [];
+        if (storedTopics) {
+            const topics = JSON.parse(storedTopics);
+            const uniqueChapters = Array.from(new Set(topics.map(t => t.chapterName || t.chapter_name)));
+            tags = uniqueChapters.map(name => name.replace(/[^a-zA-Z0-9\u0C00-\u0C7F]/g, ''));
+        }
+
+        if (tags.length > 0) {
+            window.CURRICULUM_TAGS[subject] = tags;
+        } else {
+            // Fallback: Fetch tags from database via API URL
+            const dbTags = await apiFetchFlatTags(subject);
+            if (dbTags && dbTags.length > 0) {
+                window.CURRICULUM_TAGS[subject] = dbTags;
+            } else {
+                const chapters = await apiFetchChapters(board, className, subject);
+                if (chapters && chapters.length > 0) {
+                    const builtTags = [];
+                    for (const ch of chapters) {
+                        const cleanTitle = ch.title.replace(/[^a-zA-Z0-9\u0C00-\u0C7F]/g, '');
+                        builtTags.push(cleanTitle);
+                    }
+                    window.CURRICULUM_TAGS[subject] = builtTags;
+                } else {
+                    window.CURRICULUM_TAGS[subject] = [];
+                }
+            }
+        }
+
+        window.isCurriculumFetched = true;
+        const count = (window.CURRICULUM_TAGS[subject] || []).length;
+
+        if (banner) {
+            if (count > 0) {
+                banner.className = 'curriculum-status-banner success';
+                text.textContent = `✅ Loaded ${count} ${subject} tags from API.`;
+                setTimeout(() => { banner.classList.add('hidden'); }, 4000);
+            } else {
+                banner.className = 'curriculum-status-banner error';
+                text.textContent = `⚠️ No curriculum data found for ${board} Class ${className} ${subject}. Ask admin to seed the database.`;
+                if (retryBtn) retryBtn.classList.remove('hidden');
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load curriculum from API:', err);
+        window.isCurriculumFetched = true;
+
+        if (banner) {
+            banner.className = 'curriculum-status-banner error';
+            text.textContent = `⚠️ API error: ${err.message}`;
+            if (retryBtn) retryBtn.classList.remove('hidden');
+            banner.classList.remove('hidden');
+        }
+    }
+}
+
+// ================================================================
+//  CURRICULUM API HELPER — used by autocomplete
+// ================================================================
+async function fetchCurriculumTagsAPI(subject = '') {
+    await loadCurriculumCSV();
+
+    const data = window.CURRICULUM_TAGS || {};
+
+    if (subject) {
+        const normalizedSubject = subject.trim().toLowerCase();
+        const key = Object.keys(data).find(k => k.toLowerCase() === normalizedSubject);
+        if (key) {
+            return { [key]: data[key] };
+        }
+    }
+    return data;
+}
+
+// ================================================================
+//  SEED DATABASE (kept for backward compat, now uses API data)
+// ================================================================
+async function seedDatabaseCurriculum() {
+    showToast('ℹ️ Content is now managed via the database. Use Supabase SQL Editor to add new curriculum data.', 'info');
+}

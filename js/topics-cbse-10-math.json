@@ -1,0 +1,457 @@
+[
+  {
+    "subtopic": "Introduction to Number Systems",
+    "chapterNumber": 1,
+    "chapterName": "Number Systems"
+  },
+  {
+    "subtopic": "Irrational Numbers",
+    "chapterNumber": 1,
+    "chapterName": "Number Systems"
+  },
+  {
+    "subtopic": "Real Numbers and Their Decimal Expansions",
+    "chapterNumber": 1,
+    "chapterName": "Number Systems"
+  },
+  {
+    "subtopic": "Representing Real Numbers on the Number Line",
+    "chapterNumber": 1,
+    "chapterName": "Number Systems"
+  },
+  {
+    "subtopic": "Operations on Real Numbers",
+    "chapterNumber": 1,
+    "chapterName": "Number Systems"
+  },
+  {
+    "subtopic": "Laws of Exponents for Real Numbers",
+    "chapterNumber": 1,
+    "chapterName": "Number Systems"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 1,
+    "chapterName": "Number Systems"
+  },
+  {
+    "subtopic": "Introduction to Polynomials",
+    "chapterNumber": 2,
+    "chapterName": "Polynomials"
+  },
+  {
+    "subtopic": "Polynomials in One Variable",
+    "chapterNumber": 2,
+    "chapterName": "Polynomials"
+  },
+  {
+    "subtopic": "Zeros of a Polynomial",
+    "chapterNumber": 2,
+    "chapterName": "Polynomials"
+  },
+  {
+    "subtopic": "Remainder Theorem",
+    "chapterNumber": 2,
+    "chapterName": "Polynomials"
+  },
+  {
+    "subtopic": "Factorisation of Polynomials",
+    "chapterNumber": 2,
+    "chapterName": "Polynomials"
+  },
+  {
+    "subtopic": "Algebraic Identities",
+    "chapterNumber": 2,
+    "chapterName": "Polynomials"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 2,
+    "chapterName": "Polynomials"
+  },
+  {
+    "subtopic": "Introduction to Coordinate Geometry",
+    "chapterNumber": 3,
+    "chapterName": "Coordinate Geometry"
+  },
+  {
+    "subtopic": "Cartesian System",
+    "chapterNumber": 3,
+    "chapterName": "Coordinate Geometry"
+  },
+  {
+    "subtopic": "Plotting a Point in the Plane if its Coordinates are given",
+    "chapterNumber": 3,
+    "chapterName": "Coordinate Geometry"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 3,
+    "chapterName": "Coordinate Geometry"
+  },
+  {
+    "subtopic": "Introduction to Linear Equations in Two Variables",
+    "chapterNumber": 4,
+    "chapterName": "Linear Equations in Two Variables"
+  },
+  {
+    "subtopic": "Linear Equations",
+    "chapterNumber": 4,
+    "chapterName": "Linear Equations in Two Variables"
+  },
+  {
+    "subtopic": "Solution of a Linear Equation",
+    "chapterNumber": 4,
+    "chapterName": "Linear Equations in Two Variables"
+  },
+  {
+    "subtopic": "Graph of a Linear Equation in Two Variables",
+    "chapterNumber": 4,
+    "chapterName": "Linear Equations in Two Variables"
+  },
+  {
+    "subtopic": "Equations of Lines Parallel to x-axis and y-axis",
+    "chapterNumber": 4,
+    "chapterName": "Linear Equations in Two Variables"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 4,
+    "chapterName": "Linear Equations in Two Variables"
+  },
+  {
+    "subtopic": "Introduction to Euclid's Geometry",
+    "chapterNumber": 5,
+    "chapterName": "Introduction to Euclid's Geometry"
+  },
+  {
+    "subtopic": "Euclid's Definitions, Axioms and Postulates",
+    "chapterNumber": 5,
+    "chapterName": "Introduction to Euclid's Geometry"
+  },
+  {
+    "subtopic": "Equivalent Versions of Euclid's Fifth Postulate",
+    "chapterNumber": 5,
+    "chapterName": "Introduction to Euclid's Geometry"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 5,
+    "chapterName": "Introduction to Euclid's Geometry"
+  },
+  {
+    "subtopic": "Introduction to Lines and Angles",
+    "chapterNumber": 6,
+    "chapterName": "Lines and Angles"
+  },
+  {
+    "subtopic": "Basic Terms and Definitions",
+    "chapterNumber": 6,
+    "chapterName": "Lines and Angles"
+  },
+  {
+    "subtopic": "Intersecting Lines and Non-intersecting Lines",
+    "chapterNumber": 6,
+    "chapterName": "Lines and Angles"
+  },
+  {
+    "subtopic": "Pairs of Angles",
+    "chapterNumber": 6,
+    "chapterName": "Lines and Angles"
+  },
+  {
+    "subtopic": "Parallel Lines and a Transversal",
+    "chapterNumber": 6,
+    "chapterName": "Lines and Angles"
+  },
+  {
+    "subtopic": "Lines Parallel to the same Line",
+    "chapterNumber": 6,
+    "chapterName": "Lines and Angles"
+  },
+  {
+    "subtopic": "Angle Sum Property of a Triangle",
+    "chapterNumber": 6,
+    "chapterName": "Lines and Angles"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 6,
+    "chapterName": "Lines and Angles"
+  },
+  {
+    "subtopic": "Introduction",
+    "chapterNumber": 7,
+    "chapterName": "Triangles"
+  },
+  {
+    "subtopic": "Congruence of Triangles",
+    "chapterNumber": 7,
+    "chapterName": "Triangles"
+  },
+  {
+    "subtopic": "Criteria for Congruence of Triangles",
+    "chapterNumber": 7,
+    "chapterName": "Triangles"
+  },
+  {
+    "subtopic": "Some Properties of a Triangle",
+    "chapterNumber": 7,
+    "chapterName": "Triangles"
+  },
+  {
+    "subtopic": "Some More Criteria for Congruence of Triangles",
+    "chapterNumber": 7,
+    "chapterName": "Triangles"
+  },
+  {
+    "subtopic": "Inequalities in a Triangle",
+    "chapterNumber": 7,
+    "chapterName": "Triangles"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 7,
+    "chapterName": "Triangles"
+  },
+  {
+    "subtopic": "Introduction to Quadrilaterals",
+    "chapterNumber": 8,
+    "chapterName": "Quadrilaterals"
+  },
+  {
+    "subtopic": "Angle Sum Property of a Quadrilateral",
+    "chapterNumber": 8,
+    "chapterName": "Quadrilaterals"
+  },
+  {
+    "subtopic": "Types of Quadrilaterals",
+    "chapterNumber": 8,
+    "chapterName": "Quadrilaterals"
+  },
+  {
+    "subtopic": "Properties of a Parallelogram",
+    "chapterNumber": 8,
+    "chapterName": "Quadrilaterals"
+  },
+  {
+    "subtopic": "Another Condition for a Quadrilateral to be a Parallelogram",
+    "chapterNumber": 8,
+    "chapterName": "Quadrilaterals"
+  },
+  {
+    "subtopic": "The Mid-point Theorem",
+    "chapterNumber": 8,
+    "chapterName": "Quadrilaterals"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 8,
+    "chapterName": "Quadrilaterals"
+  },
+  {
+    "subtopic": "Introduction to Areas of Parallelograms and Triangles",
+    "chapterNumber": 9,
+    "chapterName": "Areas of Parallelograms and Triangles"
+  },
+  {
+    "subtopic": "Figures on the same Base and Between the same Parallels",
+    "chapterNumber": 9,
+    "chapterName": "Areas of Parallelograms and Triangles"
+  },
+  {
+    "subtopic": "Parallelograms on the same Base and between the same Parallels",
+    "chapterNumber": 9,
+    "chapterName": "Areas of Parallelograms and Triangles"
+  },
+  {
+    "subtopic": "Triangles on the same Base and between the same Parallels",
+    "chapterNumber": 9,
+    "chapterName": "Areas of Parallelograms and Triangles"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 9,
+    "chapterName": "Areas of Parallelograms and Triangles"
+  },
+  {
+    "subtopic": "Introduction to Circles",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Circles and its Related Terms: A Review",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Angle Subtended by a Chord at a Point",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Perpendicular from the Centre to a Chord",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Circle through Three Points",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Equal Chords and their Distances from the Centre",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Angle Subtended by an Arc of a Circle",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Cyclic Quadrilaterals",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 10,
+    "chapterName": "Circles"
+  },
+  {
+    "subtopic": "Introduction to Constructions",
+    "chapterNumber": 11,
+    "chapterName": "Constructions"
+  },
+  {
+    "subtopic": "Basic Constructions",
+    "chapterNumber": 11,
+    "chapterName": "Constructions"
+  },
+  {
+    "subtopic": "Some Constructions of Triangles",
+    "chapterNumber": 11,
+    "chapterName": "Constructions"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 11,
+    "chapterName": "Constructions"
+  },
+  {
+    "subtopic": "Introduction to Heron's Formula",
+    "chapterNumber": 12,
+    "chapterName": "Heron's Formula"
+  },
+  {
+    "subtopic": "Area of a Triangle – by Heron's Formula",
+    "chapterNumber": 12,
+    "chapterName": "Heron's Formula"
+  },
+  {
+    "subtopic": "Application of Heron's Formula in finding Areas of Quadrilaterals",
+    "chapterNumber": 12,
+    "chapterName": "Heron's Formula"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 12,
+    "chapterName": "Heron's Formula"
+  },
+  {
+    "subtopic": "Introduction to Surface Areas and Volumes",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Surface Area of a Cuboid and a Cube",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Surface Area of a Right Circular Cylinder",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Surface Area of a Right Circular Cone",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Surface Area of a Sphere",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Volume of a Cuboid",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Volume of a Cylinder",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Volume of a Right Circular Cone",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Volume of a Sphere",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 13,
+    "chapterName": "Surface Areas and Volumes"
+  },
+  {
+    "subtopic": "Introduction to Statistics",
+    "chapterNumber": 14,
+    "chapterName": "Statistics"
+  },
+  {
+    "subtopic": "Collection of Data",
+    "chapterNumber": 14,
+    "chapterName": "Statistics"
+  },
+  {
+    "subtopic": "Presentation of Data",
+    "chapterNumber": 14,
+    "chapterName": "Statistics"
+  },
+  {
+    "subtopic": "Graphical Representation of Data",
+    "chapterNumber": 14,
+    "chapterName": "Statistics"
+  },
+  {
+    "subtopic": "Measures of Central Tendency",
+    "chapterNumber": 14,
+    "chapterName": "Statistics"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 14,
+    "chapterName": "Statistics"
+  },
+  {
+    "subtopic": "Introduction to Probability",
+    "chapterNumber": 15,
+    "chapterName": "Probability"
+  },
+  {
+    "subtopic": "Probability – an Experimental Approach",
+    "chapterNumber": 15,
+    "chapterName": "Probability"
+  },
+  {
+    "subtopic": "Summary",
+    "chapterNumber": 15,
+    "chapterName": "Probability"
+  }
+]

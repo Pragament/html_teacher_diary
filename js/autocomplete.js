@@ -6,43 +6,40 @@ let activeIndex = -1;
 let currentInput = null;
 let currentMatchStart = -1;
 
-function fetchTagsAPI() {
-    return window.CURRICULUM_TAGS || {};
-}
-
 function getUserSubject() {
     return localStorage.getItem('userSubject') || '';
 }
 
-function getFilteredTags(query) {
-    const tagsData = fetchTagsAPI();
+async function getFilteredTags(query) {
     const rawSubject = getUserSubject().trim().toLowerCase();
+    const tagsData = await fetchCurriculumTagsAPI(rawSubject);
     
     let subjectTags = [];
-    let otherTags = [];
     
+    // Find the matching subject in our curriculum tags
     Object.keys(tagsData).forEach(key => {
         if (key.toLowerCase() === rawSubject) {
             subjectTags = tagsData[key];
-        } else {
-            otherTags = otherTags.concat(tagsData[key]);
         }
     });
     
-    otherTags = Array.from(new Set(otherTags)).filter(t => !subjectTags.includes(t));
-    
-    if (!query) {
-        // If empty query, show subject tags if available, otherwise show all
-        return subjectTags.length > 0 ? subjectTags : [...subjectTags, ...otherTags];
+    // If the teacher has a registered subject, show ONLY that subject's topics
+    if (rawSubject && subjectTags.length > 0) {
+        if (!query) return subjectTags;
+        const lowerQuery = query.toLowerCase();
+        return subjectTags.filter(t => t.toLowerCase().includes(lowerQuery));
     }
     
+    // Fallback: if no subject is registered to the teacher, search all subjects
+    let allTags = [];
+    Object.keys(tagsData).forEach(key => {
+        allTags = allTags.concat(tagsData[key]);
+    });
+    allTags = Array.from(new Set(allTags));
+    
+    if (!query) return allTags;
     const lowerQuery = query.toLowerCase();
-    
-    // Prioritize registered subject matches, then search other subjects
-    const subjectMatches = subjectTags.filter(t => t.toLowerCase().includes(lowerQuery));
-    const otherMatches = otherTags.filter(t => t.toLowerCase().includes(lowerQuery));
-    
-    return [...subjectMatches, ...otherMatches];
+    return allTags.filter(t => t.toLowerCase().includes(lowerQuery));
 }
 
 function removeDropdown() {
@@ -66,7 +63,7 @@ function positionDropdown(input, dropdown) {
     dropdown.style.width = `${Math.max(rect.width, 200)}px`;
 }
 
-function handleTagAutocompleteInput(input) {
+async function handleTagAutocompleteInput(input) {
     const cursorPos = input.selectionStart;
     const textBeforeCursor = input.value.substring(0, cursorPos);
     
@@ -82,7 +79,7 @@ function handleTagAutocompleteInput(input) {
     currentInput = input;
     currentMatchStart = cursorPos - match[0].length;
     
-    const filteredTags = getFilteredTags(query);
+    const filteredTags = await getFilteredTags(query);
     
     if (filteredTags.length === 0) {
         removeDropdown();

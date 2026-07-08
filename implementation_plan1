@@ -1,0 +1,513 @@
+# EduFlow LMS — URL-Based API Architecture Plan
+
+> **Core Rule**: The frontend contains **ZERO** educational content. No curriculum data, no chapter names, no topic lists, no questions, no syllabus. The frontend is a pure UI shell that calls API URLs and renders whatever comes back.
+
+---
+
+## 1. Complete API Endpoint Catalog
+
+### 1.1 Configuration Endpoints (Populate Dropdowns)
+
+These endpoints supply the options for the Settings panel selectors. The frontend renders empty `<select>` tags and populates them dynamically from API responses.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/boards` | List all available education boards |
+| `GET` | `/api/classes` | List all available class levels |
+| `GET` | `/api/subjects` | List all available subjects |
+| `GET` | `/api/file-types` | List all available content types (topics, syllabus, questions) |
+
+### 1.2 Curriculum Content Endpoints
+
+These are the core educational content endpoints. The frontend calls them based on the teacher's selected Board + Class + Subject combination.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/curriculum/{board}/{class}/{subject}` | Get all topics for a specific board/class/subject |
+| `GET` | `/api/curriculum/{board}/{class}/{subject}/chapters` | Get chapter list only |
+| `GET` | `/api/curriculum/{board}/{class}/{subject}/syllabus` | Get syllabus outline |
+
+### 1.3 Course & Module Endpoints (Future LMS Expansion)
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/courses` | List all available courses |
+| `GET` | `/api/course/{courseId}` | Get course details (title, description, metadata) |
+| `GET` | `/api/course/{courseId}/modules` | List all modules in a course |
+| `GET` | `/api/module/{moduleId}` | Get single module content |
+| `GET` | `/api/module/{moduleId}/topics` | Get topics within a module |
+| `GET` | `/api/module/{moduleId}/questions` | Get questions/quizzes for a module |
+
+### 1.4 Teacher Activity Endpoints (Existing Supabase — Already URL-Based)
+
+These already work through the Supabase REST API. No changes needed.
+
+| Method | Endpoint (Supabase auto-generated) | Purpose |
+|---|---|---|
+| `GET` | `/rest/v1/daily_activities?user_id=eq.{uid}` | Fetch teacher's daily entries |
+| `POST` | `/rest/v1/daily_activities` | Save/upsert daily entries |
+| `DELETE` | `/rest/v1/daily_activities?date=eq.{date}` | Delete a day's entries |
+
+---
+
+## 2. What Each Endpoint Should Return
+
+### `GET /api/boards`
+
+```json
+{
+  "data": [
+    { "id": 1, "name": "CBSE", "display_order": 1 },
+    { "id": 2, "name": "ICSE", "display_order": 2 },
+    { "id": 3, "name": "State Board", "display_order": 3 }
+  ]
+}
+```
+
+### `GET /api/classes`
+
+```json
+{
+  "data": [
+    { "id": 1, "name": "1", "display_order": 1 },
+    { "id": 2, "name": "2", "display_order": 2 },
+    ...
+    { "id": 10, "name": "10", "display_order": 10 }
+  ]
+}
+```
+
+### `GET /api/subjects`
+
+```json
+{
+  "data": [
+    { "id": 1, "name": "Mathematics", "folder_key": "math", "display_order": 1 },
+    { "id": 2, "name": "Science", "folder_key": "science", "display_order": 2 },
+    { "id": 3, "name": "English", "folder_key": "english", "display_order": 3 },
+    { "id": 4, "name": "Telugu", "folder_key": "telugu", "display_order": 4 },
+    { "id": 5, "name": "Social Studies", "folder_key": "social", "display_order": 5 }
+  ]
+}
+```
+
+### `GET /api/file-types`
+
+```json
+{
+  "data": [
+    { "id": 1, "name": "topics", "label": "Topics" },
+    { "id": 2, "name": "syllabus", "label": "Syllabus" },
+    { "id": 3, "name": "questions", "label": "Questions" }
+  ]
+}
+```
+
+### `GET /api/curriculum/cbse/10/math`
+
+This is the **primary content endpoint**. It returns parsed, structured curriculum data — NOT raw CSV text.
+
+```json
+{
+  "board": "CBSE",
+  "class": "10",
+  "subject": "Mathematics",
+  "total_chapters": 15,
+  "total_topics": 82,
+  "chapters": [
+    {
+      "number": 1,
+      "name": "Real Numbers",
+      "topics": [
+        { "tag": "Ch1_Real_Numbers", "name": "Real Numbers" },
+        { "tag": "Ch1_Introduction", "name": "Introduction" },
+        { "tag": "Ch1_Euclids_Division_Lemma", "name": "Euclid's Division Lemma" },
+        { "tag": "Ch1_Fundamental_Theorem_of_Arithmetic", "name": "The Fundamental Theorem of Arithmetic" },
+        { "tag": "Ch1_Revisiting_Irrational_Numbers", "name": "Revisiting Irrational Numbers" },
+        { "tag": "Ch1_Summary", "name": "Summary" }
+      ]
+    },
+    {
+      "number": 2,
+      "name": "Polynomials",
+      "topics": [
+        { "tag": "Ch2_Polynomials", "name": "Polynomials" },
+        { "tag": "Ch2_Geometrical_Meaning_of_Zeroes", "name": "Geometrical Meaning of the Zeroes of a Polynomial" }
+      ]
+    }
+  ],
+  "flat_tags": [
+    "Ch1_Real_Numbers",
+    "Ch1_Introduction",
+    "Ch1_Euclids_Division_Lemma",
+    ...
+  ]
+}
+```
+
+> [!NOTE]
+> The response includes a `flat_tags` array — this is what the autocomplete engine needs. The `chapters` array is for future structured display. The backend does the CSV parsing, not the frontend.
+
+### `GET /api/course/{courseId}/modules`
+
+```json
+{
+  "course": { "id": "math-10-cbse", "title": "CBSE Class 10 Mathematics" },
+  "modules": [
+    { "id": "mod-1", "number": 1, "title": "Real Numbers", "topic_count": 6 },
+    { "id": "mod-2", "number": 2, "title": "Polynomials", "topic_count": 5 }
+  ]
+}
+```
+
+### `GET /api/module/{moduleId}/questions`
+
+```json
+{
+  "module": { "id": "mod-1", "title": "Real Numbers" },
+  "questions": [
+    {
+      "id": "q1",
+      "type": "mcq",
+      "text": "What is the HCF of 26 and 91?",
+      "options": ["13", "26", "7", "91"],
+      "answer_index": 0,
+      "difficulty": "easy"
+    }
+  ]
+}
+```
+
+---
+
+## 3. Where the Backend Should Store Educational Content
+
+### 3.1 Architecture Options
+
+```mermaid
+flowchart TD
+    subgraph "Option A: Supabase Edge Functions (Recommended)"
+        EF["Supabase Edge Functions<br/>(Deno/TypeScript)"]
+        DB["Supabase PostgreSQL"]
+        ST["Supabase Storage"]
+        EF -->|"reads structured data"| DB
+        EF -->|"reads CSV files"| ST
+        EF -->|"returns JSON"| FE["Frontend"]
+    end
+```
+
+```mermaid
+flowchart TD
+    subgraph "Option B: External API Server"
+        API["Node.js / Express / Fastify Server<br/>Hosted on Railway, Render, Vercel"]
+        DB2["Supabase PostgreSQL<br/>(via connection string)"]
+        FS["File System or S3"]
+        API -->|"queries"| DB2
+        API -->|"reads files"| FS
+        API -->|"returns JSON"| FE2["Frontend"]
+    end
+```
+
+```mermaid
+flowchart TD
+    subgraph "Option C: Supabase PostgREST + Database Views"
+        PR["Supabase Auto-REST API<br/>(PostgREST built-in)"]
+        DB3["PostgreSQL Tables + Views"]
+        PR -->|"auto-generates REST"| FE3["Frontend"]
+        DB3 -->|"exposes via"| PR
+    end
+```
+
+### 3.2 Recommendation: Option C (Supabase PostgREST) for Phase 1
+
+Since you are already using Supabase, the fastest path is:
+
+1. **Store all educational content in PostgreSQL tables** (not CSV files)
+2. **Use Supabase's built-in REST API** (PostgREST) — every table automatically gets REST endpoints
+3. **Create database Views** for complex queries (e.g., joining boards + classes + subjects + topics)
+
+This means:
+- `GET /rest/v1/boards?select=id,name,display_order&order=display_order` → replaces `/api/boards`
+- `GET /rest/v1/curriculum_topics?board=eq.CBSE&class=eq.10&subject=eq.Mathematics` → replaces `/api/curriculum/cbse/10/math`
+
+**No custom backend server needed.** Supabase generates the REST API from your tables automatically.
+
+### 3.3 Database Storage Design
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Supabase PostgreSQL                    │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  boards           classes          subjects               │
+│  ┌────────────┐  ┌────────────┐  ┌──────────────────┐   │
+│  │ id         │  │ id         │  │ id               │   │
+│  │ name       │  │ name       │  │ name             │   │
+│  │ display_   │  │ display_   │  │ folder_key       │   │
+│  │   order    │  │   order    │  │ display_order    │   │
+│  │ is_active  │  │ is_active  │  │ is_active        │   │
+│  └────────────┘  └────────────┘  └──────────────────┘   │
+│         │               │               │                │
+│         └───────────┬───┘───────────────┘                │
+│                     │                                    │
+│              curriculum_topics                           │
+│              ┌──────────────────────┐                    │
+│              │ id                   │                    │
+│              │ board (TEXT)         │ ← denormalized     │
+│              │ class (TEXT)         │   for simpler      │
+│              │ subject (TEXT)       │   REST queries     │
+│              │ chapter_number (INT) │                    │
+│              │ chapter_name (TEXT)  │                    │
+│              │ subtopic (TEXT)      │                    │
+│              │ topic_tag (TEXT)     │                    │
+│              │ display_order (INT) │                    │
+│              └──────────────────────┘                    │
+│                                                          │
+│              daily_activities (existing, unchanged)       │
+│              ┌──────────────────────┐                    │
+│              │ user_id             │                    │
+│              │ date                │                    │
+│              │ period_number       │                    │
+│              │ class_section       │                    │
+│              │ classwork           │                    │
+│              │ homework            │                    │
+│              │ photo_url           │                    │
+│              └──────────────────────┘                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+> [!IMPORTANT]
+> **Key Design Decision**: The `curriculum_topics` table uses denormalized TEXT columns (`board`, `class`, `subject`) instead of foreign key IDs. This makes the Supabase REST queries simpler: `?board=eq.CBSE&class=eq.10&subject=eq.Mathematics` instead of needing to join three tables. For a project of this scale, simplicity beats normalization.
+
+---
+
+## 4. How the Frontend Should Consume These URLs
+
+### 4.1 New Module: `js/api.js`
+
+A single new file that encapsulates ALL API calls. No other file in the project makes direct `fetch()` calls to content endpoints.
+
+```
+api.js responsibilities:
+├── fetchBoards()           → GET /rest/v1/boards
+├── fetchClasses()          → GET /rest/v1/classes
+├── fetchSubjects()         → GET /rest/v1/subjects
+├── fetchCurriculum(board, class, subject)
+│                           → GET /rest/v1/curriculum_topics?board=eq.{board}&class=eq.{class}&subject=eq.{subject}
+├── fetchCourse(courseId)   → GET /rest/v1/courses?id=eq.{courseId}
+├── fetchModules(courseId)  → GET /rest/v1/modules?course_id=eq.{courseId}
+└── fetchQuestions(moduleId)→ GET /rest/v1/questions?module_id=eq.{moduleId}
+```
+
+### 4.2 Frontend Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as ui.js
+    participant API as api.js (NEW)
+    participant SB as Supabase REST API
+    participant DB as PostgreSQL
+
+    Note over User,DB: Page Load — Settings Tab
+    UI->>API: fetchBoards()
+    API->>SB: GET /rest/v1/boards?order=display_order
+    SB->>DB: SELECT * FROM boards ORDER BY display_order
+    DB-->>SB: [CBSE, ICSE, State Board]
+    SB-->>API: JSON response
+    API-->>UI: Board list
+    UI->>User: Populate Board dropdown
+
+    UI->>API: fetchSubjects()
+    API->>SB: GET /rest/v1/subjects?order=display_order
+    SB-->>API: JSON response
+    API-->>UI: Subject list
+    UI->>User: Populate Subject dropdown
+
+    Note over User,DB: User Saves Config → Daily Entry Tab
+    User->>UI: Select CBSE / 10 / Mathematics / Save
+    UI->>API: fetchCurriculum("CBSE", "10", "Mathematics")
+    API->>SB: GET /rest/v1/curriculum_topics?board=eq.CBSE&class=eq.10&subject=eq.Mathematics&order=display_order
+    SB->>DB: SELECT * FROM curriculum_topics WHERE ...
+    DB-->>SB: 82 rows
+    SB-->>API: JSON array of topic objects
+    API-->>UI: Parsed topic tags
+    UI->>User: Autocomplete hashtags now available (#Ch1_Real_Numbers, etc.)
+```
+
+### 4.3 What the Frontend Autocomplete Receives
+
+Currently `autocomplete.js` reads from `window.CURRICULUM_TAGS["Mathematics"]` — an array of strings. This contract stays identical. The only change is **how that array gets populated**:
+
+| Current (Hardcoded) | Proposed (URL-Based) |
+|---|---|
+| `curriculum.js` line 4: `window.CURRICULUM_TAGS = { "Mathematics": [...] }` | `api.js`: `fetch('/rest/v1/curriculum_topics?...').then(rows => rows.map(r => r.topic_tag))` |
+| Data exists at page load | Data fetched asynchronously on page load |
+| Fallback: local array | Fallback: empty array + error banner |
+
+---
+
+## 5. Files That Must Stop Containing Educational Content
+
+### Files to Modify (Remove Content, Keep Logic)
+
+| File | What to Remove | What to Keep |
+|---|---|---|
+| [curriculum.js](file:///d:/projects/html_teacher_diary-1/js/curriculum.js) | Lines 4–62: `window.CURRICULUM_TAGS` hardcoded object (60 lines) | CSV parser functions, loader logic (rewritten to call API) |
+| [curriculum.js](file:///d:/projects/html_teacher_diary-1/js/curriculum.js) | Lines 279–289: `SUBJECT_FOLDER_MAP` object | Replaced by `subjects.folder_key` from API |
+| [curriculum.js](file:///d:/projects/html_teacher_diary-1/js/curriculum.js) | Lines 298–303: `buildLocalApiPath()` function | Replaced by Supabase REST URL construction in `api.js` |
+| [index.html](file:///d:/projects/html_teacher_diary-1/index.html) | Lines 146–187: Hardcoded `<option>` tags for Board, Class, Subject, File Type | Keep empty `<select>` shells, populate via `api.js` |
+| [index.html](file:///d:/projects/html_teacher_diary-1/index.html) | Lines 198–210: Hardcoded `<option>` tags for Teacher Subject | Keep empty `<select>`, populate via `api.js` |
+| [index.html](file:///d:/projects/html_teacher_diary-1/index.html) | Lines 246–315: Full SQL DDL embedded in HTML | Move to external documentation or migration script |
+| [ui.js](file:///d:/projects/html_teacher_diary-1/js/ui.js) | Lines 696–767: `copySqlScript()` full SQL as JS string | Move SQL to external file or remove entirely |
+| [data.js](file:///d:/projects/html_teacher_diary-1/js/data.js) | Lines 11–12: Hardcoded default Supabase URL and anon key | Require user input on first setup |
+
+### Files to Delete Entirely
+
+| File | Reason |
+|---|---|
+| [js/curriculum.json](file:///d:/projects/html_teacher_diary-1/js/curriculum.json) | Redundant static copy of curriculum data (153 lines of educational content) |
+| [api/lms/cbse/10/math/topics.csv](file:///d:/projects/html_teacher_diary-1/api/lms/cbse/10/math/topics.csv) | Local CSV file — content moves to database |
+| [api/lms/cbse/10/science/topics.csv](file:///d:/projects/html_teacher_diary-1/api/lms/cbse/10/science/topics.csv) | Local CSV file — content moves to database |
+| [api/lms/cbse/10/english/topics.csv](file:///d:/projects/html_teacher_diary-1/api/lms/cbse/10/english/topics.csv) | Local CSV file — content moves to database |
+| [api/lms/cbse/10/social/topics.csv](file:///d:/projects/html_teacher_diary-1/api/lms/cbse/10/social/topics.csv) | Local CSV file — content moves to database |
+| [api/lms/cbse/10/telugu/topics.csv](file:///d:/projects/html_teacher_diary-1/api/lms/cbse/10/telugu/topics.csv) | Local CSV file — content moves to database |
+| Entire `api/` directory | No more local content files |
+
+### New File to Create
+
+| File | Purpose |
+|---|---|
+| `js/api.js` | Single API client module. All `fetch()` calls to content endpoints live here. |
+
+---
+
+## 6. Migration Strategy
+
+### Phase 1: Database Setup (No Frontend Changes)
+
+```
+Step 1.1 → Create tables: boards, classes, subjects in Supabase SQL Editor
+Step 1.2 → Seed boards: INSERT INTO boards (name, display_order) VALUES ('CBSE', 1), ('ICSE', 2), ('State Board', 3)
+Step 1.3 → Seed classes: INSERT INTO classes (name, display_order) VALUES ('1', 1), ('2', 2), ... ('10', 10)
+Step 1.4 → Seed subjects: INSERT INTO subjects (name, folder_key, display_order) VALUES ('Mathematics', 'math', 1), ...
+Step 1.5 → Create curriculum_topics table with denormalized board/class/subject TEXT columns
+Step 1.6 → Parse each local CSV file and INSERT rows into curriculum_topics
+           (82 Math rows + ~100 Science rows + ~36 English rows + ~120 Social rows + ~30 Telugu rows)
+Step 1.7 → Set up RLS policies: public read on all config tables, authenticated write
+Step 1.8 → Verify: open Supabase REST API in browser:
+           https://syjhiqlfjieihhpymwdz.supabase.co/rest/v1/boards?select=*
+           → should return JSON array of boards
+```
+
+### Phase 2: Create `api.js` (New File, No Breaking Changes)
+
+```
+Step 2.1 → Create js/api.js with functions:
+           - fetchBoards() → calls Supabase REST /rest/v1/boards
+           - fetchClasses() → calls Supabase REST /rest/v1/classes
+           - fetchSubjects() → calls Supabase REST /rest/v1/subjects
+           - fetchCurriculumTopics(board, class, subject) → calls /rest/v1/curriculum_topics?...
+           Each function uses the existing getSupabaseClient() to make authenticated requests.
+
+Step 2.2 → Add <script src="js/api.js?v=4.0"></script> to index.html BEFORE curriculum.js
+Step 2.3 → Test: call fetchBoards() from browser console, verify JSON response
+```
+
+### Phase 3: Rewire Frontend to Use API URLs (Breaking Changes)
+
+```
+Step 3.1 → curriculum.js: Replace window.CURRICULUM_TAGS hardcoded object with:
+           window.CURRICULUM_TAGS = {};  // empty, populated by API
+           
+Step 3.2 → curriculum.js: Rewrite loadCurriculumCSV() to call:
+           fetchCurriculumTopics(board, class, subject)
+           instead of building a local file path and fetching CSV
+
+Step 3.3 → index.html: Replace hardcoded <option> tags with empty <select> shells:
+           <select id="settingsCurriculumBoard"></select>   ← populated by fetchBoards()
+           <select id="settingsCurriculumClass"></select>    ← populated by fetchClasses()
+           <select id="settingsCurriculumSubject"></select>  ← populated by fetchSubjects()
+
+Step 3.4 → ui.js: Update loadSettingsUI() to call API and populate dropdowns dynamically
+
+Step 3.5 → index.html: Same for Teacher Subject dropdown — populate from fetchSubjects()
+```
+
+### Phase 4: Cleanup (Remove All Hardcoded Content)
+
+```
+Step 4.1 → DELETE js/curriculum.json
+Step 4.2 → DELETE entire api/ directory (all local CSV files)
+Step 4.3 → REMOVE SUBJECT_FOLDER_MAP from curriculum.js
+Step 4.4 → REMOVE buildLocalApiPath() from curriculum.js
+Step 4.5 → REMOVE parseTopicsCSV() and parseCSVLine() from curriculum.js
+           (backend now returns structured JSON, not raw CSV)
+Step 4.6 → REMOVE embedded SQL from index.html (move to README or external docs)
+Step 4.7 → REMOVE copySqlScript() SQL string from ui.js
+Step 4.8 → REMOVE default Supabase credentials from data.js
+Step 4.9 → Bump cache version to v=4.0
+```
+
+### Phase 5: Verification
+
+```
+Step 5.1 → Hard-refresh browser, sign in
+Step 5.2 → Settings tab → dropdowns populated from API (no hardcoded options)
+Step 5.3 → Select CBSE / 10 / Mathematics → Save Config
+Step 5.4 → Daily Entry tab → banner shows "✅ Loaded 82 Mathematics topics from API"
+Step 5.5 → Type # in classwork field → autocomplete shows chapter/topic suggestions
+Step 5.6 → Switch to Science → Save → autocomplete updates to Science topics
+Step 5.7 → Switch to non-existent combination → banner shows "No curriculum data found"
+Step 5.8 → Verify: View Source on index.html → ZERO educational content visible
+Step 5.9 → Verify: grep entire js/ folder for any chapter names → ZERO matches
+```
+
+---
+
+## Summary: Before vs. After
+
+```mermaid
+flowchart LR
+    subgraph "BEFORE (Current)"
+        direction TB
+        A1["index.html<br/>Hardcoded dropdowns<br/>Embedded SQL"]
+        A2["curriculum.js<br/>60 lines of topic tags<br/>Subject folder map<br/>CSV parser"]
+        A3["curriculum.json<br/>153 lines of content"]
+        A4["api/ folder<br/>5 local CSV files"]
+        A1 & A2 & A3 & A4 -->|"educational content<br/>scattered across 8+ files"| FE1["Frontend Bundle"]
+    end
+
+    subgraph "AFTER (Proposed)"
+        direction TB
+        B1["index.html<br/>Empty select shells"]
+        B2["api.js (NEW)<br/>fetch() calls only"]
+        B3["curriculum.js<br/>Empty CURRICULUM_TAGS = {}"]
+        B1 & B2 & B3 -->|"ZERO content<br/>pure UI + API calls"| FE2["Frontend Bundle"]
+        FE2 -->|"GET /rest/v1/boards"| API["Supabase REST API"]
+        FE2 -->|"GET /rest/v1/curriculum_topics"| API
+        API --> DB["PostgreSQL<br/>All content lives here"]
+    end
+```
+
+| Metric | Before | After |
+|---|---|---|
+| Educational content in frontend | ~400+ lines across 4 files | **0 lines** |
+| Local data files | 6 files (JSON + 5 CSVs) | **0 files** |
+| Hardcoded dropdown options | 25+ `<option>` tags | **0** (dynamic) |
+| Adding a new subject | Edit 3+ JS/HTML files | **1 SQL INSERT** |
+| Adding a new board | Edit index.html | **1 SQL INSERT** |
+| Adding new class topics | Create CSV file + folder | **INSERT rows into table** |
+
+---
+
+## Open Questions
+
+> [!IMPORTANT]
+> **Q1: Backend Choice** — Should we use Supabase's built-in PostgREST API (zero backend code, just tables) or build a custom Node.js/Express API server with clean `/api/curriculum/cbse/10/math` style URLs?
+
+> [!IMPORTANT]
+> **Q2: CSV Parsing Location** — Currently the frontend parses raw CSV into topic tags. In the new architecture, should the CSV be parsed once during upload (a migration script converts CSV → database rows) and the API returns pre-structured JSON? Or should the API still serve raw CSV and the frontend parses it?
+
+> [!IMPORTANT]
+> **Q3: Content Seeding** — After migration, how should new curriculum content be added? Options: (A) Teacher uploads CSV via the app UI → backend parses and inserts, (B) Admin runs SQL INSERTs in Supabase Dashboard, (C) A separate admin script/tool that reads CSVs and populates the database.

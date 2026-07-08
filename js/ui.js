@@ -1,6 +1,31 @@
 // ================================================================
 //  UI: DAILY TAB
 // ================================================================
+function parseClassSection(val) {
+    if (!val) return { class: '', section: '' };
+    const parts = val.split('-');
+    if (parts.length === 2) {
+        return {
+            class: parts[0].trim(),
+            section: parts[1].trim()
+        };
+    }
+    const match = val.match(/^([0-9]+)\s*([a-zA-Z]*)$/);
+    if (match) {
+        return {
+            class: match[1],
+            section: match[2]
+        };
+    }
+    if (/^[0-9]+$/.test(val.trim())) {
+        const num = parseInt(val.trim());
+        if (num >= 1 && num <= 10) {
+            return { class: val.trim(), section: '' };
+        }
+    }
+    return { class: '', section: val };
+}
+
 function renderDailyTab() {
     const dateInput = document.getElementById('dailyDate');
     if (!dateInput.value) dateInput.value = getTodayStr();
@@ -41,9 +66,22 @@ function renderDailyTab() {
             `;
         }
 
+        const parsed = parseClassSection(existing.classSection || '');
+        const classDropdownOptions = [
+            '<option value="">Class...</option>',
+            ...[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${parsed.class === String(n) ? 'selected' : ''}>${n}</option>`)
+        ].join('\n');
+
         tr.innerHTML = `
           <td class="period-num">${i}</td>
-          <td><input type="text" class="daily-class" data-period="${i}" value="${escHtml(existing.classSection || '')}" placeholder="e.g. 10-A" /></td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <select class="daily-class-dropdown" data-period="${i}" style="width:100%; padding:4px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text); font-size:13px;">
+                ${classDropdownOptions}
+              </select>
+              <input type="text" class="daily-section-input" data-period="${i}" value="${escHtml(parsed.section)}" placeholder="Section (e.g. A)" style="width:100%; padding:4px 8px; font-size:13px; margin-top:2px;" />
+            </div>
+          </td>
           <td><input type="text" class="daily-work" data-period="${i}" value="${escHtml(existing.classwork || '')}" placeholder="What was taught?" /></td>
           <td><input type="text" class="daily-home" data-period="${i}" value="${escHtml(existing.homework || '')}" placeholder="Homework assigned?" /></td>
           <td>${photoHtml}</td>
@@ -148,7 +186,9 @@ async function saveDaily() {
     try {
         for (const tr of rows) {
             const periodNum = parseInt(tr.querySelector('.period-num')?.textContent || '0');
-            const classVal = tr.querySelector('.daily-class')?.value?.trim() || '';
+            const classDropdownVal = tr.querySelector('.daily-class-dropdown')?.value || '';
+            const sectionVal = tr.querySelector('.daily-section-input')?.value?.trim() || '';
+            const classVal = (classDropdownVal && sectionVal) ? `${classDropdownVal}-${sectionVal}` : (classDropdownVal || sectionVal);
             const workVal = tr.querySelector('.daily-work')?.value?.trim() || '';
             const homeVal = tr.querySelector('.daily-home')?.value?.trim() || '';
             let photoVal = tr.querySelector('.daily-photo-url')?.value || '';
@@ -235,7 +275,11 @@ function copyPreviousDay() {
         const periodNum = parseInt(tr.querySelector('.period-num')?.textContent || '0');
         const prevPeriod = prevEntry.periods.find(p => p.periodNumber === periodNum);
         if (prevPeriod) {
-            tr.querySelector('.daily-class').value = prevPeriod.classSection || '';
+            const parsed = parseClassSection(prevPeriod.classSection || '');
+            const classDropdown = tr.querySelector('.daily-class-dropdown');
+            if (classDropdown) classDropdown.value = parsed.class;
+            const sectionInput = tr.querySelector('.daily-section-input');
+            if (sectionInput) sectionInput.value = parsed.section;
             tr.querySelector('.daily-work').value = prevPeriod.classwork || '';
             tr.querySelector('.daily-home').value = prevPeriod.homework || '';
             
@@ -270,7 +314,10 @@ function resetDaily() {
     if (!dateStr) return;
     const tbody = document.getElementById('periodTableBody');
     tbody.querySelectorAll('tr').forEach(tr => {
-        tr.querySelector('.daily-class').value = '';
+        const classDropdown = tr.querySelector('.daily-class-dropdown');
+        if (classDropdown) classDropdown.value = '';
+        const sectionInput = tr.querySelector('.daily-section-input');
+        if (sectionInput) sectionInput.value = '';
         tr.querySelector('.daily-work').value = '';
         tr.querySelector('.daily-home').value = '';
         const periodNum = parseInt(tr.querySelector('.period-num')?.textContent || '0');
@@ -381,12 +428,53 @@ function deleteDay(dateStr) {
 // ================================================================
 //  UI: SETTINGS TAB
 // ================================================================
-function loadSettingsUI() {
+async function loadSettingsUI() {
     const settings = getSettings();
     document.getElementById('settingsPeriods').value = settings.periodsPerDay || 8;
     document.getElementById('settingsSupabaseUrl').value = settings.supabaseUrl || '';
     document.getElementById('settingsSupabaseKey').value = settings.supabaseKey || '';
     document.getElementById('settingsSupabaseTable').value = settings.supabaseTable || 'daily_activities';
+    
+    const subjectSelect = document.getElementById('settingsTeacherSubject');
+    const boardSelect = document.getElementById('settingsCurriculumBoard');
+    const classSelect = document.getElementById('settingsCurriculumClass');
+    const curriculumSubjectSelect = document.getElementById('settingsCurriculumSubject');
+    const fileTypeSelect = document.getElementById('settingsCurriculumFileType');
+
+    try {
+        const [boards, classes, subjects] = await Promise.all([
+            window.apiFetchBoards().catch(() => []),
+            window.apiFetchClasses().catch(() => []),
+            window.apiFetchSubjects().catch(() => [])
+        ]);
+
+        if (boardSelect && boards.length > 0) {
+            boardSelect.innerHTML = boards.map(b => `<option value="${escHtml(b.name)}">${escHtml(b.name)}</option>`).join('');
+            boardSelect.value = settings.curriculumBoard || 'CBSE';
+        }
+
+        if (classSelect && classes.length > 0) {
+            classSelect.innerHTML = classes.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
+            classSelect.value = settings.curriculumClass || '10';
+        }
+
+        if (curriculumSubjectSelect && subjects.length > 0) {
+            curriculumSubjectSelect.innerHTML = subjects.map(s => `<option value="${escHtml(s.name)}">${escHtml(s.name)}</option>`).join('');
+            curriculumSubjectSelect.value = settings.curriculumSubject || 'Mathematics';
+        }
+
+        if (subjectSelect && subjects.length > 0) {
+            subjectSelect.innerHTML = [
+                '<option value="">All Subjects (No Restriction)</option>',
+                ...subjects.map(s => `<option value="${escHtml(s.name)}">${escHtml(s.name)}</option>`)
+            ].join('\n');
+            subjectSelect.value = localStorage.getItem('userSubject') || '';
+        }
+    } catch (err) {
+        console.error('Error populating dynamic dropdown options:', err);
+    }
+
+    if (fileTypeSelect) fileTypeSelect.value = settings.curriculumFileType || 'topics';
 }
 
 function savePeriodsSetting() {
@@ -397,6 +485,74 @@ function savePeriodsSetting() {
     saveSettings(settings);
     showToast(`✅ Periods per day set to ${val}`, 'success');
     if (document.getElementById('tab-daily').classList.contains('active')) renderDailyTab();
+}
+
+function saveCurriculumConfigSetting() {
+    const board = document.getElementById('settingsCurriculumBoard').value;
+    const className = document.getElementById('settingsCurriculumClass').value;
+    const subject = document.getElementById('settingsCurriculumSubject').value;
+    const fileType = document.getElementById('settingsCurriculumFileType').value;
+    
+    const settings = getSettings();
+    settings.curriculumBoard = board;
+    settings.curriculumClass = className;
+    settings.curriculumSubject = subject;
+    settings.curriculumFileType = fileType;
+    saveSettings(settings);
+    
+    showToast('✅ Dynamic content configuration saved.', 'success');
+    loadCurriculumCSV(true);
+}
+
+async function saveSubjectSetting() {
+    const select = document.getElementById('settingsTeacherSubject');
+    if (!select) return;
+    const newSubject = select.value;
+    
+    // Save to localStorage immediately
+    if (newSubject) {
+        localStorage.setItem('userSubject', newSubject);
+    } else {
+        localStorage.removeItem('userSubject');
+    }
+    
+    // If Supabase is authenticated, update the user metadata in the cloud
+    if (isSupabaseConfigValid()) {
+        const client = getSupabaseClient();
+        if (client) {
+            try {
+                const { data: { session } } = await client.auth.getSession();
+                if (session && session.user) {
+                    const saveBtn = document.getElementById('settingsSaveSubject');
+                    const origText = saveBtn.textContent;
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Saving...';
+                    
+                    const { error } = await client.auth.updateUser({
+                        data: { subject: newSubject }
+                    });
+                    
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = origText;
+                    
+                    if (error) {
+                        showToast(`Failed to sync subject to Supabase: ${error.message}`, 'error');
+                        return;
+                    }
+                    
+                    // Trigger session re-read to update UI displays
+                    const { data: { session: updatedSession } } = await client.auth.getSession();
+                    if (updatedSession) {
+                        handleAuthState(updatedSession);
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not sync subject with Supabase:', e);
+            }
+        }
+    }
+    
+    showToast(newSubject ? `✅ Subject configured to ${newSubject}` : '✅ Subject filtering disabled.', 'success');
 }
 
 function saveSupabaseSettings(quiet = false) {
@@ -559,80 +715,21 @@ function toggleSqlHelper() {
     }
 }
 
-function copySqlScript(event) {
+async function copySqlScript(event) {
     if (event) event.stopPropagation();
-    const sqlText = `-- ============================================
--- TEACHER PLANNER - COMPLETE SUPABASE SQL SETUP
--- ============================================
-
--- 1. USER PROFILES TABLE (stores registered user info)
-DROP TABLE IF EXISTS user_profiles CASCADE;
-
-CREATE TABLE user_profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  full_name TEXT DEFAULT '',
-  subject TEXT DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own profile"
-ON user_profiles FOR SELECT TO authenticated
-USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile"
-ON user_profiles FOR UPDATE TO authenticated
-USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert own profile"
-ON user_profiles FOR INSERT TO authenticated
-WITH CHECK (auth.uid() = id);
-
--- Auto-create profile when a new user signs up
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.user_profiles (id, email, full_name, subject)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'subject', '')
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- 2. DAILY ACTIVITIES TABLE
-DROP TABLE IF EXISTS daily_activities CASCADE;
-
-CREATE TABLE daily_activities (
-  user_id UUID NOT NULL REFERENCES auth.users(id) DEFAULT auth.uid(),
-  date DATE NOT NULL,
-  period_number INTEGER NOT NULL,
-  class_section TEXT DEFAULT '',
-  classwork TEXT DEFAULT '',
-  homework TEXT DEFAULT '',
-  photo_url TEXT DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  PRIMARY KEY (user_id, date, period_number)
-);
-
-ALTER TABLE daily_activities ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow users to read own data"
-ON daily_activities FOR SELECT TO authenticated, anon USING (auth.uid() = user_id);
-
-CREATE POLICY "Allow users to modify own data"
-ON daily_activities FOR ALL TO authenticated, anon USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);`;
+    let sqlText = '';
+    try {
+        const response = await fetch('/migration.sql');
+        if (response.ok) {
+            sqlText = await response.text();
+        }
+    } catch (err) {
+        console.warn('Could not fetch migration.sql dynamically:', err);
+    }
+    
+    if (!sqlText) {
+        sqlText = `-- Please copy the contents of the migration.sql file located in the root folder of the project.`;
+    }
 
     navigator.clipboard.writeText(sqlText).then(() => {
         const btn = event ? (event.currentTarget || event.target) : null;
@@ -645,7 +742,7 @@ ON daily_activities FOR ALL TO authenticated, anon USING (auth.uid() = user_id) 
                 btn.style.background = '';
             }, 2000);
         }
-        showToast('SQL script copied to clipboard!', 'success');
+        showToast('SQL migration script copied to clipboard!', 'success');
     }).catch(err => {
         showToast('Failed to copy: ' + err.message, 'error');
     });

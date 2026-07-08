@@ -8,7 +8,7 @@
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
     </script>
-    <link rel="stylesheet" href="css/styles.css?v=2.4" />
+    <link rel="stylesheet" href="css/styles.css?v=4.0" />
 </head>
 
 <body>
@@ -40,6 +40,13 @@
 
         <!-- ====== TAB: DAILY ENTRY ====== -->
         <section class="tab-content active" id="tab-daily">
+            <!-- Curriculum Loading/Error Banner -->
+            <div id="curriculum-status-banner" class="curriculum-status-banner hidden">
+                <span class="status-icon">🔄</span>
+                <span id="curriculum-status-text">Loading curriculum topics from API...</span>
+                <button id="curriculum-retry-btn" class="btn btn-xs btn-outline hidden" style="margin-left:auto;">🔄 Retry</button>
+            </div>
+
             <div class="card">
                 <div class="flex-between">
                     <div class="card-title">📅 Daily Activities</div>
@@ -111,6 +118,63 @@
                     </div>
                 </div>
 
+                <!-- Teacher Subject -->
+                <div class="settings-group">
+                    <div class="group-title">🏫 Teacher Subject</div>
+                    <div class="settings-row">
+                        <div style="flex:1;">
+                            <label for="settingsTeacherSubject">Registered Subject</label>
+                            <select id="settingsTeacherSubject" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text);">
+                                <option value="">Loading subjects...</option>
+                            </select>
+                            <div class="settings-help">Filters autocomplete options to only show topics from this subject.</div>
+                        </div>
+                        <button class="btn btn-primary" id="settingsSaveSubject">Save</button>
+                    </div>
+                </div>
+
+                <!-- Curriculum CSV Endpoint -->
+                <div class="settings-group">
+                    <div class="group-title">🔗 Dynamic Curriculum Source</div>
+                    <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:12px;">
+                        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+                            <div style="flex:1;min-width:140px;">
+                                <label for="settingsCurriculumBoard">Board</label>
+                                <select id="settingsCurriculumBoard" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
+                                    <option value="">Loading boards...</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;min-width:100px;">
+                                <label for="settingsCurriculumClass">Class</label>
+                                <select id="settingsCurriculumClass" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
+                                    <option value="">Loading classes...</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;min-width:140px;">
+                                <label for="settingsCurriculumSubject">Subject</label>
+                                <select id="settingsCurriculumSubject" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
+                                    <option value="">Loading subjects...</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;min-width:120px;">
+                                <label for="settingsCurriculumFileType">File Type</label>
+                                <select id="settingsCurriculumFileType" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
+                                    <option value="topics" selected>topics</option>
+                                    <option value="syllabus">syllabus</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <button class="btn btn-primary btn-sm" id="settingsSaveCurriculumConfig">Save Config</button>
+                            <button class="btn btn-outline btn-sm" id="settingsClearCacheBtn" onclick="clearApiCache(); showToast('🧹 API Cache cleared!', 'success');">🧹 Clear API Cache</button>
+                            <button class="btn btn-outline btn-sm" id="settingsRefreshCurriculum">🔄 Fetch Latest Now</button>
+                            <button class="btn btn-success btn-sm" id="fetchTopicsBtn" onclick="fetchTopicsFromAPI()">🌐 Fetch Dynamic Topics</button>
+                            <span id="fetchTopicsStatus" class="text-muted text-sm" style="margin-left:8px;"></span>
+                        </div>
+                        <div class="settings-help">Curriculum options and topic tags are loaded dynamically via URL endpoints in the backend database.</div>
+                    </div>
+                </div>
+
                 <!-- Supabase -->
                 <div class="settings-group">
                     <div class="group-title">☁️ Supabase Sync</div>
@@ -136,6 +200,8 @@
                             <button class="btn btn-success btn-sm" id="settingsSupabasePush">⬆ Push to Supabase</button>
                             <button class="btn btn-primary btn-sm" id="settingsSupabasePull">⬇ Pull from
                                 Supabase</button>
+                            <button class="btn btn-outline btn-sm" id="settingsSeedCurriculum"
+                                title="Populate the curriculum_topics table in Supabase with all current subject tags">🌱 Seed Curriculum to DB</button>
                             <button class="btn btn-outline btn-sm" onclick="loadTestPhoto()"
                                 title="Injects a mock Base64 image into Period 1 for developer testing">🔬 Insert Test
                                 Photo (P1)</button>
@@ -143,7 +209,7 @@
                                 style="align-self:center;margin-left:4px;"></span>
                         </div>
                         <div class="settings-help">Push sends all local data to Supabase. Pull replaces local data with
-                            remote data.</div>
+                            remote data. Seed Curriculum uploads all topic tags to the database.</div>
 
                         <div class="sql-helper-box" id="sqlHelperBox">
                             <div class="sql-helper-header" onclick="toggleSqlHelper()">
@@ -156,39 +222,20 @@
                                     <ol style="margin-top: 8px; padding-left: 18px;">
                                         <li>Go to <strong>SQL Editor</strong> in the left sidebar and click <strong>+
                                                 New Query</strong>.</li>
-                                        <li>Copy and paste the SQL script below, then click <strong>Run</strong>:</li>
+                                        <li>Copy and paste the SQL script from the <code>migration.sql</code> file at the root of your project:</li>
                                     </ol>
                                     <div class="code-container" id="sqlCodeContainer"
-                                        style="white-space: pre-wrap; font-family: monospace;">-- Drop existing table if
-                                        migrating
-                                        DROP TABLE IF EXISTS daily_activities CASCADE;
+                                        style="white-space: pre-wrap; font-family: monospace;">A complete database migration file is available at the root of your project: migration.sql.
 
-                                        -- Create secure multi-user daily activities table
-                                        CREATE TABLE daily_activities (
-                                        user_id UUID NOT NULL REFERENCES auth.users(id) DEFAULT auth.uid(),
-                                        date DATE NOT NULL,
-                                        period_number INTEGER NOT NULL,
-                                        class_section TEXT DEFAULT '',
-                                        classwork TEXT DEFAULT '',
-                                        homework TEXT DEFAULT '',
-                                        photo_url TEXT DEFAULT '',
-                                        created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-                                        PRIMARY KEY (user_id, date, period_number)
-                                        );
+Please open it, copy its content, and run it in the Supabase SQL Editor.
 
-                                        -- Enable Row Level Security (RLS)
-                                        ALTER TABLE daily_activities ENABLE ROW LEVEL SECURITY;
-
-                                        -- Allow authenticated/anon users to read their own data
-                                        CREATE POLICY "Allow users to read own data"
-                                        ON daily_activities FOR SELECT TO authenticated, anon USING (auth.uid() =
-                                        user_id);
-
-                                        -- Allow authenticated/anon users to modify their own data
-                                        CREATE POLICY "Allow users to modify own data"
-                                        ON daily_activities FOR ALL TO authenticated, anon USING (auth.uid() = user_id)
-                                        WITH CHECK (auth.uid() = user_id);<button class="copy-sql-btn"
-                                            onclick="copySqlScript(event)">📋 Copy SQL</button></div>
+It will automatically:
+1. Create all 8 normalized tables (boards, classes, subjects, chapters, modules, questions, media_assets, content_tags)
+2. Seed the boards, classes, and subjects reference data
+3. Populate all Class 10 chapters and tags (Math, Science, English, Telugu, Social Studies)
+4. Enable RLS and setup Read/Write policies<button class="copy-sql-btn"
+                                             onclick="copySqlScript(event)">📋 Copy SQL</button></div></li>
+                                    </ol>
                                     <ol start="3" style="margin-top: 8px; padding-left: 18px;">
                                         <li>Go to <strong>Storage</strong> in the left sidebar, click <strong>New
                                                 Bucket</strong>. Name it <strong>activity_photos</strong> and make it
@@ -240,15 +287,17 @@
     </section>
     </div>
 
-    <script src="js/data.js?v=2.4"></script>
-    <script src="js/toast.js?v=2.4"></script>
-    <script src="js/supabase.js?v=2.4"></script>
-    <script src="js/csv.js?v=2.4"></script>
-    <script src="js/auth.js?v=2.4"></script>
-    <script src="js/ui.js?v=2.4"></script>
-    <script src="js/curriculum.js?v=2.4"></script>
-    <script src="js/autocomplete.js?v=2.4"></script>
-    <script src="js/app.js?v=2.4"></script>
+    <script src="js/data.js?v=4.0"></script>
+    <script src="js/toast.js?v=4.0"></script>
+    <script src="js/supabase.js?v=4.0"></script>
+    <script src="js/storage-manager.js?v=4.0"></script>
+    <script src="js/api.js?v=4.0"></script>
+    <script src="js/csv.js?v=4.0"></script>
+    <script src="js/auth.js?v=4.0"></script>
+    <script src="js/ui.js?v=4.0"></script>
+    <script src="js/curriculum.js?v=4.0"></script>
+    <script src="js/autocomplete.js?v=4.0"></script>
+    <script src="js/app.js?v=4.0"></script>
 
     <!-- ====== AUTH OVERLAY ====== -->
     <div id="auth-overlay" class="auth-overlay">
