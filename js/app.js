@@ -66,6 +66,20 @@ function init() {
     document.getElementById('settingsSupabaseTest').addEventListener('click', testSupabase);
     document.getElementById('settingsSupabasePush').addEventListener('click', doPushSupabase);
     document.getElementById('settingsSupabasePull').addEventListener('click', doPullSupabase);
+
+    const fetchConfigBtn = document.getElementById('settingsSupabaseFetchConfig');
+    if (fetchConfigBtn) {
+        fetchConfigBtn.addEventListener('click', showFetchConfigModal);
+    }
+    const cancelFetchConfigBtn = document.getElementById('cancelFetchConfigBtn');
+    if (cancelFetchConfigBtn) {
+        cancelFetchConfigBtn.addEventListener('click', hideFetchConfigModal);
+    }
+    const submitFetchConfigBtn = document.getElementById('submitFetchConfigBtn');
+    if (submitFetchConfigBtn) {
+        submitFetchConfigBtn.addEventListener('click', handleFetchConfigSubmit);
+    }
+
     document.getElementById('settingsExportCSV').addEventListener('click', exportCSV);
     document.getElementById('settingsImportCSV').addEventListener('click', () => document.getElementById('csvFileInput').click());
     document.getElementById('csvFileInput').addEventListener('change', function (e) {
@@ -131,3 +145,6 @@ window.saveSubjectSetting = saveSubjectSetting;
 window.saveCurriculumConfigSetting = saveCurriculumConfigSetting;
 window.loadCurriculumCSV = loadCurriculumCSV;
 window.seedDatabaseCurriculum = seedDatabaseCurriculum;
+window.showFetchConfigModal = showFetchConfigModal;
+window.hideFetchConfigModal = hideFetchConfigModal;
+window.handleFetchConfigSubmit = handleFetchConfigSubmit;
