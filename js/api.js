@@ -317,5 +317,100 @@ async function fetchTopicsFromAPI() {
   }
 }
 
-window.fetchTopicsFromAPI = fetchTopicsFromAPI;
+window.fetchTopicsFromAPI = fetchTopicsFromAPI;/**
+ * Fetch Supabase configuration from nameserver API
+ * @param {string} uuid
+ * @param {string} pin
+ * @returns {Promise<{supabaseUrl: string, supabaseAnonKey: string, tableName: string}>}
+ */
+async function apiFetchSupabaseConfig(uuid, pin) {
+    const url = 'https://expressjs-api-intranet-nameserver.onrender.com/api/config/get';
+    
+    // Validate pin is present
+    if (!pin || pin.trim() === '') {
+        throw new Error('PIN is required.');
+    }
+    
+    const payload = {
+        uuid: uuid ? uuid.trim() : "",
+        pin: pin.trim()
+    };
+    
+    // Developer Logging (development mode only)
+    console.group('Developer Logs: Fetch Config Request');
+    console.log('Request Payload:', payload);
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        console.log('HTTP Status Code:', response.status);
+        
+        if (!response.ok) {
+            let errorMsg = `Server returned status ${response.status}`;
+            try {
+                const errData = await response.json();
+                console.log('Raw Error response:', errData);
+                if (errData && errData.message) {
+                    errorMsg = errData.message;
+                } else if (errData && errData.error) {
+                    errorMsg = errData.error;
+                }
+            } catch (e) {
+                // response is not JSON
+            }
+            console.groupEnd();
+            throw new Error(errorMsg);
+        }
+        
+        const rawData = await response.json();
+        console.log('Raw API Response (JSON):', JSON.stringify(rawData, null, 2));
+        
+        if (!rawData) {
+            console.groupEnd();
+            throw new Error('Server returned an empty response.');
+        }
+        
+        // Resolve nested target config object if it exists (Format 2: rawData.data, Format 3: rawData.config)
+        let target = rawData;
+        if (rawData.config && typeof rawData.config === 'object') {
+            target = rawData.config;
+        } else if (rawData.data && typeof rawData.data === 'object') {
+            target = rawData.data;
+        }
+        
+        // Resolve URL, key, and table name keys from target object
+        const supabaseUrl = target.supabaseUrl || target.supabase_url || target.url || target.SUPABASE_URL;
+        const supabaseAnonKey = target.supabaseAnonKey || target.supabase_anon_key || target.anonKey || target.anon_key || target.key || target.SUPABASE_ANON_KEY;
+        const tableName = target.tableName || target.table_name || target.table || target.SUPABASE_TABLE || 'daily_activities';
+        
+        console.log('Parsed Credentials (JSON):', JSON.stringify({ supabaseUrl, supabaseAnonKey, tableName }, null, 2));
+        
+        if (!supabaseUrl || !supabaseAnonKey) {
+            // Log missing required fields precisely
+            const missing = [];
+            if (!supabaseUrl) missing.push('supabaseUrl');
+            if (!supabaseAnonKey) missing.push('supabaseAnonKey');
+            
+            console.error('Missing Required Fields:', JSON.stringify(missing));
+            console.error('Failed Response Payload:', JSON.stringify(rawData));
+            console.groupEnd();
+            
+            throw new Error(`Server response is missing required fields: ${missing.join(', ')}`);
+        }
+        
+        console.groupEnd();
+        return { supabaseUrl, supabaseAnonKey, tableName };
+    } catch (error) {
+        console.error('apiFetchSupabaseConfig failed:', error);
+        console.groupEnd();
+        throw error;
+    }
+}
 
+window.apiFetchSupabaseConfig = apiFetchSupabaseConfig;

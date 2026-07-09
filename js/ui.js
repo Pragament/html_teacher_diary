@@ -575,7 +575,20 @@ function saveSupabaseSettings(quiet = false) {
     }
 }
 
+function validateSupabaseCredentials() {
+    const url = document.getElementById('settingsSupabaseUrl').value.trim();
+    const key = document.getElementById('settingsSupabaseKey').value.trim();
+    if (!url || !key) {
+        showToast('❌ Supabase credentials required! Please enter both Supabase URL and API Key.', 'error');
+        document.getElementById('supabaseStatus').textContent = '❌ Credentials missing.';
+        return false;
+    }
+    return true;
+}
+
 async function testSupabase() {
+    if (!validateSupabaseCredentials()) return;
+
     const btn = document.getElementById('settingsSupabaseTest');
     const statusEl = document.getElementById('supabaseStatus');
     const originalContent = btn.innerHTML;
@@ -600,6 +613,8 @@ async function testSupabase() {
 }
 
 async function doPushSupabase() {
+    if (!validateSupabaseCredentials()) return;
+
     const btn = document.getElementById('settingsSupabasePush');
     const statusEl = document.getElementById('supabaseStatus');
     const originalContent = btn.innerHTML;
@@ -624,6 +639,8 @@ async function doPushSupabase() {
 }
 
 async function doPullSupabase() {
+    if (!validateSupabaseCredentials()) return;
+
     const btn = document.getElementById('settingsSupabasePull');
     const statusEl = document.getElementById('supabaseStatus');
     const originalContent = btn.innerHTML;
@@ -772,3 +789,75 @@ function loadTestPhoto() {
         }
     }, 100);
 }
+
+// ================================================================
+//  UI: SUPABASE CONFIG FETCH MODAL CONTROLLERS
+// ================================================================
+function showFetchConfigModal() {
+    const overlay = document.getElementById('config-fetch-overlay');
+    if (!overlay) return;
+
+    // Reset inputs
+    document.getElementById('fetchConfigUuid').value = '';
+    document.getElementById('fetchConfigPin').value = '';
+
+    // Show overlay
+    overlay.classList.add('active');
+}
+
+function hideFetchConfigModal() {
+    const overlay = document.getElementById('config-fetch-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+}
+
+async function handleFetchConfigSubmit() {
+    const uuid = document.getElementById('fetchConfigUuid').value.trim();
+    const pin = document.getElementById('fetchConfigPin').value.trim();
+    const btn = document.getElementById('submitFetchConfigBtn');
+    const cancelBtn = document.getElementById('cancelFetchConfigBtn');
+    const fetchTriggerBtn = document.getElementById('settingsSupabaseFetchConfig');
+    
+    // Validate pin is present
+    if (!pin) {
+        showToast('❌ PIN is required.', 'error');
+        return;
+    }
+    
+    // UI Loading state
+    const originalBtnText = btn.textContent;
+    btn.disabled = true;
+    cancelBtn.disabled = true;
+    if (fetchTriggerBtn) fetchTriggerBtn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Fetching...';
+    
+    try {
+        const config = await window.apiFetchSupabaseConfig(uuid, pin);
+        
+        // Populate inputs
+        document.getElementById('settingsSupabaseUrl').value = config.supabaseUrl;
+        document.getElementById('settingsSupabaseKey').value = config.supabaseAnonKey;
+        if (config.tableName) {
+            document.getElementById('settingsSupabaseTable').value = config.tableName;
+        }
+        
+        // Auto-save settings
+        saveSupabaseSettings();
+        
+        showToast('✅ Supabase configuration updated successfully!', 'success');
+        hideFetchConfigModal();
+    } catch (error) {
+        showToast('❌ Failed to fetch config: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        cancelBtn.disabled = false;
+        if (fetchTriggerBtn) fetchTriggerBtn.disabled = false;
+        btn.textContent = originalBtnText;
+    }
+}
+
+window.showFetchConfigModal = showFetchConfigModal;
+window.hideFetchConfigModal = hideFetchConfigModal;
+window.handleFetchConfigSubmit = handleFetchConfigSubmit;
+

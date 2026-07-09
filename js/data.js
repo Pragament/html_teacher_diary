@@ -8,8 +8,8 @@ function getDefaultData() {
         activities: [],
         settings: {
             periodsPerDay: 8,
-            supabaseUrl: 'https://syjhiqlfjieihhpymwdz.supabase.co',
-            supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5amhpcWxmamllaWhocHltd2R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDI5ODksImV4cCI6MjA5Nzk3ODk4OX0.AUeZ8FmGQ5ZcANqnzwzKN-0wgf4c8VJRnVjVu_9kqt0',
+            supabaseUrl: '',
+            supabaseKey: '',
             supabaseTable: 'daily_activities',
         }
     };
@@ -23,10 +23,27 @@ function loadData() {
         if (!parsed.settings) parsed.settings = getDefaultData().settings;
         if (!parsed.activities) parsed.activities = [];
         
-        // Auto-correct common typo in default Supabase URL (missing trailing 'z')
-        if (parsed.settings && parsed.settings.supabaseUrl === 'https://syjhiqlfjieihhpymwd.supabase.co') {
-            parsed.settings.supabaseUrl = 'https://syjhiqlfjieihhpymwdz.supabase.co';
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+        // Wipe default developer credentials for existing user migrations (one-time check)
+        if (localStorage.getItem('isCredentialsWiped') !== 'true') {
+            const defaultUrl1 = 'https://syjhiqlfjieihhpymwdz.supabase.co';
+            const defaultUrl2 = 'https://syjhiqlfjieihhpymwd.supabase.co';
+            const defaultKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5amhpcWxmamllaWhocHltd2R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDI5ODksImV4cCI6MjA5Nzk3ODk4OX0.AUeZ8FmGQ5ZcANqnzwzKN-0wgf4c8VJRnVjVu_9kqt0';
+            
+            let changed = false;
+            if (parsed.settings) {
+                if (parsed.settings.supabaseUrl === defaultUrl1 || parsed.settings.supabaseUrl === defaultUrl2) {
+                    parsed.settings.supabaseUrl = '';
+                    changed = true;
+                }
+                if (parsed.settings.supabaseKey === defaultKey) {
+                    parsed.settings.supabaseKey = '';
+                    changed = true;
+                }
+                if (changed) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+                }
+            }
+            localStorage.setItem('isCredentialsWiped', 'true');
         }
         
         return parsed;
@@ -47,11 +64,6 @@ function getSettings() {
 function saveSettings(settings) {
     const data = loadData();
     data.settings = settings;
-    
-    // Auto-correct on save as well
-    if (data.settings && data.settings.supabaseUrl === 'https://syjhiqlfjieihhpymwd.supabase.co') {
-        data.settings.supabaseUrl = 'https://syjhiqlfjieihhpymwdz.supabase.co';
-    }
     
     saveData(data);
 }
