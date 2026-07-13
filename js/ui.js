@@ -442,28 +442,45 @@ async function loadSettingsUI() {
     const fileTypeSelect = document.getElementById('settingsCurriculumFileType');
 
     try {
-        const [boards, classes, subjects] = await Promise.all([
+        let [boards, classes, subjects] = await Promise.all([
             window.apiFetchBoards().catch(() => []),
             window.apiFetchClasses().catch(() => []),
             window.apiFetchSubjects().catch(() => [])
         ]);
 
-        if (boardSelect && boards.length > 0) {
+        if (!boards || boards.length === 0) {
+            boards = [{ id: 1, name: 'CBSE' }, { id: 2, name: 'ICSE' }, { id: 3, name: 'State Board' }];
+        }
+        if (!classes || classes.length === 0) {
+            classes = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: String(i + 1) }));
+        }
+        if (!subjects || subjects.length === 0) {
+            subjects = [
+                { id: 1, name: 'Mathematics' },
+                { id: 2, name: 'Science' },
+                { id: 3, name: 'Social Studies' },
+                { id: 4, name: 'English' },
+                { id: 5, name: 'Hindi' },
+                { id: 6, name: 'Telugu' }
+            ];
+        }
+
+        if (boardSelect) {
             boardSelect.innerHTML = boards.map(b => `<option value="${escHtml(b.name)}">${escHtml(b.name)}</option>`).join('');
             boardSelect.value = settings.curriculumBoard || 'CBSE';
         }
 
-        if (classSelect && classes.length > 0) {
+        if (classSelect) {
             classSelect.innerHTML = classes.map(c => `<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('');
             classSelect.value = settings.curriculumClass || '10';
         }
 
-        if (curriculumSubjectSelect && subjects.length > 0) {
+        if (curriculumSubjectSelect) {
             curriculumSubjectSelect.innerHTML = subjects.map(s => `<option value="${escHtml(s.name)}">${escHtml(s.name)}</option>`).join('');
             curriculumSubjectSelect.value = settings.curriculumSubject || 'Mathematics';
         }
 
-        if (subjectSelect && subjects.length > 0) {
+        if (subjectSelect) {
             subjectSelect.innerHTML = [
                 '<option value="">All Subjects (No Restriction)</option>',
                 ...subjects.map(s => `<option value="${escHtml(s.name)}">${escHtml(s.name)}</option>`)

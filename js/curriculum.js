@@ -54,24 +54,14 @@ async function loadCurriculumCSV(force = false) {
                 const response = await fetch(apiUrl);
                 if (response.ok) {
                     const topics = await response.json();
+                    console.log("Curriculum: Fetched curriculum topics from API:", topics);
                     localStorage.setItem(storageKey, JSON.stringify(topics));
                     storedTopics = JSON.stringify(topics);
                 } else {
                     throw new Error(`Live API returned non-OK status: ${response.status}`);
                 }
             } catch (err) {
-                console.warn("Live API fetch failed. Trying local topics.json fallback...", err);
-                try {
-                    const localResponse = await fetch('js/topics.json');
-                    if (localResponse.ok) {
-                        const topics = await localResponse.json();
-                        localStorage.setItem(storageKey, JSON.stringify(topics));
-                        storedTopics = JSON.stringify(topics);
-                        console.log("Curriculum: Loaded topics from local topics.json file.");
-                    }
-                } catch (localErr) {
-                    console.error("Local topics.json fallback also failed:", localErr);
-                }
+                console.warn("Live API fetch failed.", err);
             }
         }
 

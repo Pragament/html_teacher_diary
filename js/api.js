@@ -21,6 +21,7 @@ function clearApiCache() {
     window.StorageManager.clearAllApiData();
 }
 
+
 // ================================================================
 //  SUPABASE REST QUERY HELPER
 // ================================================================
@@ -270,12 +271,11 @@ async function fetchTopicsFromAPI() {
     const apiUrl = `https://staticapis.pragament.com/lms/${board}/${className}/${subjectKey}/topics.json`;
     
     const response = await fetch(apiUrl);
-    
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
     const topics = await response.json();
+    console.log("Fetched curriculum topics from API:", topics);
     
     // Save to local storage
     const storageKey = `curriculum_topics_${board}_${className}_${subjectKey}`;
