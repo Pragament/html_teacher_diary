@@ -10,27 +10,92 @@ function getUserSubject() {
     return localStorage.getItem('userSubject') || '';
 }
 
-async function getFilteredTags(query) {
-    const rawSubject = getUserSubject().trim().toLowerCase();
-    const tagsData = await fetchCurriculumTagsAPI(rawSubject);
+async function getFilteredTags(query, input) {
+    const settings = getSettings();
+    const rawSubject = (settings.curriculumSubject || getUserSubject() || 'Mathematics').trim().toLowerCase();
+    
+    // Determine the class from the current row in the Daily Entry table
+    const tr = input ? input.closest('tr') : null;
+    const classDropdown = tr ? tr.querySelector('.daily-class-dropdown') : null;
+    const selectedClass = classDropdown ? classDropdown.value.trim() : '';
+    
+    const configuredClass = (settings.curriculumClass || '10').trim();
+    
+    // Only allow autocomplete fetch/display if the row class matches the configured class
+    if (selectedClass && selectedClass !== configuredClass) {
+        console.log(`Autocomplete: Row class (${selectedClass}) does not match configured class (${configuredClass}). Skipping tag fetch.`);
+        return [];
+    }
+    
+    const boardKey = (settings.curriculumBoard || 'CBSE').toLowerCase();
+    const classKey = (selectedClass || configuredClass).toLowerCase();
+    
+    const subjectMap = {
+        'mathematics': 'math',
+        'math': 'math',
+        'science': 'science',
+        'social studies': 'social',
+        'social': 'social',
+        'telugu': 'telugu',
+        'english': 'english',
+        'hindi': 'hindi'
+    };
+    const subjectKey = subjectMap[rawSubject] || rawSubject;
+    
+    // Check local storage directly for the requested board/class/subject topics
+    const storageKey = `curriculum_topics_${boardKey}_${classKey}_${subjectKey}`;
+    let storedTopics = localStorage.getItem(storageKey);
+    
+    // If not cached in local storage, fetch directly from the static API
+    if (!storedTopics) {
+        const apiUrl = `https://staticapis.pragament.com/lms/${boardKey}/${classKey}/${subjectKey}/topics.json`;
+        console.log(`Autocomplete: topics not cached. Fetching directly from API: ${apiUrl}`);
+        try {
+            const response = await fetch(apiUrl);
+            if (response.ok) {
+                const topics = await response.json();
+                console.log("Autocomplete: Fetched curriculum topics from API:", topics);
+                localStorage.setItem(storageKey, JSON.stringify(topics));
+                storedTopics = JSON.stringify(topics);
+                console.log(`Autocomplete: Successfully fetched and saved topics to local storage.`);
+            }
+        } catch (fetchErr) {
+            console.warn(`Autocomplete: failed to fetch topics dynamically from ${apiUrl}`, fetchErr);
+        }
+    }
     
     let subjectTags = [];
-    
-    // Find the matching subject in our curriculum tags
-    Object.keys(tagsData).forEach(key => {
-        if (key.toLowerCase() === rawSubject) {
-            subjectTags = tagsData[key];
+    if (storedTopics) {
+        try {
+            const topics = JSON.parse(storedTopics);
+            if (Array.isArray(topics)) {
+                const uniqueChapters = Array.from(new Set(topics.map(t => t.chapterName || t.chapter_name)));
+                subjectTags = uniqueChapters.map(name => name.replace(/[^a-zA-Z0-9\u0C00-\u0C7F]/g, ''));
+            }
+        } catch (e) {
+            console.error('Failed to parse cached topics for', storageKey, e);
         }
-    });
+    }
     
-    // If the teacher has a registered subject, show ONLY that subject's topics
-    if (rawSubject && subjectTags.length > 0) {
+    // Fallback: If local storage has no topics cached for this class, fall back to CURRICULUM_TAGS or fetch API
+    if (subjectTags.length === 0) {
+        const tagsData = await fetchCurriculumTagsAPI(rawSubject);
+        Object.keys(tagsData).forEach(key => {
+            if (key.toLowerCase() === rawSubject) {
+                subjectTags = tagsData[key];
+            }
+        });
+    }
+    
+    // Filter suggestions based on query
+    if (subjectTags.length > 0) {
         if (!query) return subjectTags;
         const lowerQuery = query.toLowerCase();
         return subjectTags.filter(t => t.toLowerCase().includes(lowerQuery));
     }
     
-    // Fallback: if no subject is registered to the teacher, search all subjects
+    // Global fallback search
+    const tagsData = await fetchCurriculumTagsAPI('');
     let allTags = [];
     Object.keys(tagsData).forEach(key => {
         allTags = allTags.concat(tagsData[key]);
@@ -79,7 +144,7 @@ async function handleTagAutocompleteInput(input) {
     currentInput = input;
     currentMatchStart = cursorPos - match[0].length;
     
-    const filteredTags = await getFilteredTags(query);
+    const filteredTags = await getFilteredTags(query, input);
     
     if (filteredTags.length === 0) {
         removeDropdown();

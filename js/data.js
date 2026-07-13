@@ -11,6 +11,10 @@ function getDefaultData() {
             supabaseUrl: '',
             supabaseKey: '',
             supabaseTable: 'daily_activities',
+            curriculumBoard: 'CBSE',
+            curriculumClass: '10',
+            curriculumSubject: 'Mathematics',
+            curriculumFileType: 'topics'
         }
     };
 }
