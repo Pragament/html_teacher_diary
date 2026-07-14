@@ -2,13 +2,16 @@
 //  TAB SWITCHING
 // ================================================================
 function setupTabs() {
-    document.querySelectorAll('.tab-nav button').forEach(btn => {
+    document.querySelectorAll('.tab-nav button[data-tab]').forEach(btn => {
         btn.addEventListener('click', function () {
             const tab = this.dataset.tab;
-            document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-nav button[data-tab]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tab).classList.add('active');
+            const tabContent = document.getElementById('tab-' + tab);
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
             // render content
             if (tab === 'daily') renderDailyTab();
             if (tab === 'view') renderViewTab();

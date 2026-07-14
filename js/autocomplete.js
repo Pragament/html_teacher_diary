@@ -19,16 +19,8 @@ async function getFilteredTags(query, input) {
     const classDropdown = tr ? tr.querySelector('.daily-class-dropdown') : null;
     const selectedClass = classDropdown ? classDropdown.value.trim() : '';
     
-    const configuredClass = (settings.curriculumClass || '10').trim();
-    
-    // Only allow autocomplete fetch/display if the row class matches the configured class
-    if (selectedClass && selectedClass !== configuredClass) {
-        console.log(`Autocomplete: Row class (${selectedClass}) does not match configured class (${configuredClass}). Skipping tag fetch.`);
-        return [];
-    }
-    
     const boardKey = (settings.curriculumBoard || 'CBSE').toLowerCase();
-    const classKey = (selectedClass || configuredClass).toLowerCase();
+    const classKey = (selectedClass || settings.curriculumClass || '10').trim().toLowerCase();
     
     const subjectMap = {
         'mathematics': 'math',
