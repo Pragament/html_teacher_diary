@@ -1464,3 +1464,14 @@ textarea {
 .status-icon {
     font-size: 16px;
 }
+
+/* Disable tab animations and stacking contexts during active tour to allow proper Intro.js highlighting */
+body.tour-active .tab-content,
+body.tour-active .card,
+body.tour-active .period-table-wrap {
+    animation: none !important;
+    backdrop-filter: none !important;
+    filter: none !important;
+    transform: none !important;
+    overflow: visible !important;
+}

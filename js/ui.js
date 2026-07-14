@@ -82,7 +82,11 @@ function renderDailyTab() {
               <input type="text" class="daily-section-input" data-period="${i}" value="${escHtml(parsed.section)}" placeholder="Section (e.g. A)" style="width:100%; padding:4px 8px; font-size:13px; margin-top:2px;" />
             </div>
           </td>
-          <td><input type="text" class="daily-work" data-period="${i}" value="${escHtml(existing.classwork || '')}" placeholder="What was taught?" /></td>
+          <td>
+            <div ${i === 1 ? 'id="tourClassworkWrap"' : ''} style="position: relative; width: 100%;">
+              <input type="text" class="daily-work" data-period="${i}" value="${escHtml(existing.classwork || '')}" placeholder="What was taught?" />
+            </div>
+          </td>
           <td><input type="text" class="daily-home" data-period="${i}" value="${escHtml(existing.homework || '')}" placeholder="Homework assigned?" /></td>
           <td>${photoHtml}</td>
         `;
