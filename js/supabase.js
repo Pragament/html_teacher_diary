@@ -5,21 +5,21 @@ let supabaseClient = null;
 let supabaseClientConfig = '';
 
 function getSupabaseClient() {
-    const settings = getSettings();
-    if (!settings.supabaseUrl || !settings.supabaseKey) return null;
-    let url = settings.supabaseUrl.trim();
+    if (!window.ENV || !window.ENV.SUPABASE_URL || !window.ENV.SUPABASE_KEY) return null;
+    
+    let url = window.ENV.SUPABASE_URL.trim();
     if (url.endsWith('/')) url = url.slice(0, -1);
     if (url.endsWith('/rest/v1')) url = url.slice(0, -8);
     if (url.endsWith('/')) url = url.slice(0, -1);
 
-    const configKey = url + '|' + settings.supabaseKey;
+    const configKey = url + '|' + window.ENV.SUPABASE_KEY;
     if (supabaseClient && supabaseClientConfig !== configKey) {
         supabaseClient = null;
     }
 
     if (!supabaseClient) {
         try {
-            supabaseClient = window.supabase.createClient(url, settings.supabaseKey);
+            supabaseClient = window.supabase.createClient(url, window.ENV.SUPABASE_KEY);
             supabaseClientConfig = configKey;
         } catch {
             return null;
@@ -151,6 +151,141 @@ async function pullFromSupabase() {
         }));
         return { ok: true, message: `Pulled ${data.length} period entries (${activities.length} days).`, data: activities };
     } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+// ================================================================
+//  PHASE 1 MIGRATION: CENTRAL DB AND REVISIONS
+// ================================================================
+
+async function writeAuditLog(client, userId, role, action, tableName, recordId, beforeVal, afterVal) {
+    if (!client) return;
+    try {
+        await client.from('audit_logs').insert({
+            user_id: userId,
+            role: role,
+            action: action,
+            table_name: tableName,
+            record_id: recordId,
+            before_value: beforeVal ? JSON.stringify(beforeVal) : null,
+            after_value: afterVal ? JSON.stringify(afterVal) : null
+        });
+    } catch (e) {
+        console.warn('Failed to write audit log:', e);
+    }
+}
+
+async function saveEntryToSupabase(dateStr, periods) {
+    const client = getSupabaseClient();
+    if (!client) return { ok: false };
+    
+    try {
+        const { data: { session } } = await client.auth.getSession();
+        if (!session) return { ok: false };
+        
+        const { data: profile, error: profileErr } = await client.from('users').select('role').eq('id', session.user.id).single();
+        if (profileErr) {
+            console.warn('Sync failed: could not fetch user profile (RLS issue?):', profileErr);
+            return { ok: false };
+        }
+        
+        let successCount = 0;
+        
+        for (const p of periods) {
+            // Find current max revision
+            const { data: revData } = await client.from('daily_entries')
+                .select('revision_number')
+                .eq('teacher_id', session.user.id)
+                .eq('date', dateStr)
+                .eq('period_number', p.periodNumber)
+                .order('revision_number', { ascending: false })
+                .limit(1);
+                
+            let nextRev = 1;
+            if (revData && revData.length > 0) {
+                nextRev = revData[0].revision_number + 1;
+            }
+            
+            // Insert new revision
+            const { data: inserted, error } = await client.from('daily_entries').insert({
+                teacher_id: session.user.id,
+                date: dateStr,
+                period_number: p.periodNumber,
+                class_section: p.classSection || '',
+                subject: p.subject || '',
+                classwork: p.classwork || '',
+                homework: p.homework || '',
+                status: 'draft',
+                revision_number: nextRev
+            }).select('id').single();
+            
+            if (!error && inserted) {
+                successCount++;
+                
+                // Write audit log
+                await writeAuditLog(client, session.user.id, profile.role, 'CREATE_REVISION', 'daily_entries', inserted.id, null, {
+                    date: dateStr, period: p.periodNumber, rev: nextRev
+                });
+                
+                // Link existing files to the new revision
+                if (p.files && p.files.length > 0) {
+                    const existingAttachments = p.files.map(f => ({
+                        entry_id: inserted.id,
+                        teacher_id: session.user.id,
+                        file_name: f.name,
+                        file_url: f.path || f.url,
+                        file_type: f.type,
+                        file_size: f.size
+                    }));
+                    await client.from('attachments').insert(existingAttachments);
+                }
+
+                // Upload and link new pending files
+                if (p.pendingFiles && p.pendingFiles.length > 0 && window.FileUploadService) {
+                    for (const pending of p.pendingFiles) {
+                        try {
+                            const storagePath = await window.FileUploadService.uploadPeriodFile(
+                                pending, session.user.id, dateStr, p.periodNumber
+                            );
+                            
+                            // Insert attachment record
+                            const { data: attData } = await client.from('attachments').insert({
+                                entry_id: inserted.id,
+                                teacher_id: session.user.id,
+                                file_name: pending.name,
+                                file_url: storagePath,
+                                file_type: pending.type || 'application/octet-stream',
+                                file_size: pending.size
+                            }).select('id').single();
+                            
+                            // Add to local existing files array so UI knows it's uploaded
+                            p.files.push({
+                                id: attData?.id,
+                                name: pending.name,
+                                type: pending.type,
+                                size: pending.size,
+                                path: storagePath,
+                                url: await window.FileUploadService.getSignedUrl(storagePath),
+                                isExisting: true
+                            });
+                        } catch (err) {
+                            console.error('Failed to upload pending file:', err);
+                            if (!window.isAutoSaving) showToast(`⚠️ File upload failed: ${pending.name}`, 'warning');
+                        }
+                    }
+                    // Clear pending files
+                    p.pendingFiles = [];
+                }
+            }
+        }
+        
+        // Save to localStorage with updated files state
+        saveDayEntry(dateStr, periods);
+        
+        return { ok: true, count: successCount };
+    } catch (e) {
+        console.error('Error saving entry to Supabase:', e);
         return { ok: false, error: e.message };
     }
 }

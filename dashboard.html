@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📚 Teacher's Daily Planner</title>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    </script>
+    <link rel="stylesheet" href="css/styles.css?v=7.1" />
+    <!-- Intro.js Stylesheet -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/introjs.min.css" />
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered!', reg))
+                    .catch(err => console.error('SW registration failed', err));
+            });
+        }
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+        }
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark');
+        }
+    </script>
+</head>
+
+<body>
+
+    <!-- ====== TOAST CONTAINER ====== -->
+    <div id="toast-container"></div>
+
+    <!-- ====== APP ====== -->
+    <div id="app" style="display: flex;">
+        <!-- HEADER -->
+        <header class="app-header">
+            <h1>📚 Teacher's Planner <span>daily activities</span></h1>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;">
+                <button class="btn btn-outline btn-sm" onclick="toggleDarkMode()" title="Toggle Dark Mode" style="margin-right:8px;">🌙</button>
+                <div class="header-user-banner hidden" id="headerUserBanner">
+                    <img class="header-user-avatar" id="headerUserAvatar" src="" alt="Profile" style="display:none;" />
+                    <div style="display:flex; flex-direction:column; line-height:1.2;">
+                        <span class="header-user-name" id="headerUserName" style="font-weight:600; font-size:14px; color:#fff;"></span>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span class="header-user-role" id="headerUserRole" style="font-size:11px; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:10px;">Teacher</span>
+                            <span class="header-user-school" id="headerUserSchool" style="font-size:11px; color:rgba(255,255,255,0.8);"></span>
+                        </div>
+                    </div>
+                    <button class="btn-signout" onclick="handleSignOut()" style="margin-left: 8px;">Sign Out</button>
+                </div>
+                <div class="header-date" id="headerDate"></div>
+            </div>
+        </header>
+
+        <nav class="tab-nav" id="tabNav">
+            <button class="active" data-tab="daily">📝 Daily Entry</button>
+            <button data-tab="view">🔍 View Activities <span class="badge" id="viewBadge">0</span></button>
+            <button data-tab="principal" style="display:none;">📊 Principal Dashboard</button>
+            <button data-tab="admin" style="display:none;">🛠️ Admin Panel</button>
+            <button data-tab="notifications" id="notificationsTabBtn">
+                🔔 Notifications <span class="badge" id="notificationsBadge" style="display:none;">0</span>
+            </button>
+            <button data-tab="settings">⚙️ Settings</button>
+            <button id="startTourBtn" class="tour-btn" style="margin-left:auto;">❓ Tour Guide</button>
+            <button onclick="handleSignOut()" style="color: #ef4444; border: 1px solid #ef4444; margin-left: 8px;">🚪 Logout</button>
+        </nav>
+
+        <!-- ====== TAB: DAILY ENTRY ====== -->
+        <section class="tab-content active" id="tab-daily">
+            <!-- Curriculum Loading/Error Banner -->
+            <div id="curriculum-status-banner" class="curriculum-status-banner hidden">
+                <span class="status-icon">🔄</span>
+                <span id="curriculum-status-text">Loading curriculum topics from API...</span>
+                <button id="curriculum-retry-btn" class="btn btn-xs btn-outline hidden" style="margin-left:auto;">🔄 Retry</button>
+            </div>
+
+            <div class="card">
+                <div class="flex-between">
+                    <div class="card-title">📅 Daily Activities</div>
+                    <div class="flex-row gap-8">
+                        <input type="date" id="dailyDate" style="width:auto;padding:8px 12px;" />
+                        <button class="btn btn-outline btn-sm" id="copyPrevBtn">📋 Copy from previous</button>
+                    </div>
+                </div>
+                <div id="periodCards" class="period-cards mt-12"></div>
+
+                <!-- Approval Status Banner -->
+                <div id="approvalStatusBanner" class="approval-status-banner hidden">
+                    <div class="approval-banner-content">
+                        <span id="approvalStatusIcon" class="approval-status-icon"></span>
+                        <div class="approval-status-text">
+                            <span id="approvalStatusTitle" class="approval-status-title"></span>
+                            <span id="approvalStatusSubtitle" class="approval-status-subtitle"></span>
+                        </div>
+                    </div>
+                    <!-- Revision note from principal -->
+                    <div id="revisionNoteBox" class="revision-note-box hidden">
+                        <strong>📝 Principal's Note:</strong>
+                        <p id="revisionNoteText"></p>
+                    </div>
+                </div>
+
+                <div class="flex-row mt-12" style="justify-content:flex-end;gap:10px;">
+                    <button class="btn btn-outline" id="resetDailyBtn">↺ Reset</button>
+                    <button class="btn btn-primary" id="saveDailyBtn">💾 Save</button>
+                    <button class="btn btn-submit" id="submitForApprovalBtn" style="display:none;">📤 Submit for Approval</button>
+                </div>
+                <div id="dailyStatus" class="text-muted text-sm mt-12" style="min-height:20px;"></div>
+            </div>
+            
+            <!-- Sticky Save (mobile) -->
+            <div class="sticky-save" id="stickySaveBar">
+                <button class="btn btn-primary btn-lg" id="stickySaveBtn" style="flex:1;">✓ Save All</button>
+            </div>
+        </section>
+
+        <!-- ====== TAB: VIEW ACTIVITIES ====== -->
+        <section class="tab-content" id="tab-view">
+            <div class="card">
+                <div class="card-title">🔍 Past Activities</div>
+                <div class="view-controls">
+                    <div class="search-box">
+                        <span class="search-icon">🔎</span>
+                        <input type="text" id="viewSearch" placeholder="Search by class, classwork, homework…" />
+                    </div>
+                    <div class="filter-group">
+                        <input type="date" id="viewDateFrom" />
+                        <span style="color:#94a3b8;">—</span>
+                        <input type="date" id="viewDateTo" />
+                        <select id="viewSort">
+                            <option value="date-desc">Newest first</option>
+                            <option value="date-asc">Oldest first</option>
+                        </select>
+                        <select id="viewStatusFilter">
+                            <option value="all">All Statuses</option>
+                            <option value="draft">📝 Draft</option>
+                            <option value="submitted">⏳ Submitted</option>
+                            <option value="approved">✅ Approved</option>
+                            <option value="revision_requested">🔄 Needs Revision</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="viewResults"></div>
+            </div>
+        </section>
+
+        <!-- ====== TAB: PRINCIPAL ====== -->
+        <section class="tab-content" id="tab-principal">
+            <!-- KPI Cards -->
+            <div class="principal-kpis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div class="kpi-card" style="background: var(--bg-card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                    <div style="font-size: 28px; font-weight: 600; color: var(--primary);" id="kpiTotalTeachers">0</div>
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">Total Teachers</div>
+                </div>
+                <div class="kpi-card" style="background: var(--bg-card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                    <div style="font-size: 28px; font-weight: 600; color: #f59e0b;" id="kpiPendingDiaries">0</div>
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">Pending Diaries</div>
+                </div>
+                <div class="kpi-card" style="background: var(--bg-card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                    <div style="font-size: 28px; font-weight: 600; color: #10b981;" id="kpiSignedToday">0</div>
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">Signed Today</div>
+                </div>
+                <div class="kpi-card" style="background: var(--bg-card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                    <div style="font-size: 28px; font-weight: 600; color: #ef4444;" id="kpiMissingEntries">0</div>
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">Missing Entries</div>
+                </div>
+                <div class="kpi-card" style="background: var(--bg-card); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                    <div style="font-size: 28px; font-weight: 600; color: #8b5cf6;" id="kpiLateSubmissions">0</div>
+                    <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">Late Submissions</div>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div class="principal-tab-header">
+                    <h2 class="card-title" style="margin:0;">📊 Diary Reviews</h2>
+                    <button class="btn btn-outline btn-sm" id="refreshPrincipalBtn" onclick="renderPrincipalDashboard()">🔄 Refresh</button>
+                </div>
+                
+                <!-- Filters -->
+                <div class="principal-filters" style="padding: 16px; border-bottom: 1px solid var(--border); background: var(--bg-main); display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="principalFilterTeacher" placeholder="Filter by Teacher..." style="flex: 1; min-width: 150px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text);" oninput="renderPrincipalDashboard()" />
+                    <input type="text" id="principalFilterClass" placeholder="Class (e.g. 10A)" style="flex: 1; min-width: 120px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text);" oninput="renderPrincipalDashboard()" />
+                    <input type="text" id="principalFilterSubject" placeholder="Subject" style="flex: 1; min-width: 120px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text);" oninput="renderPrincipalDashboard()" />
+                    <input type="date" id="principalFilterDate" style="flex: 1; min-width: 120px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text);" onchange="renderPrincipalDashboard()" />
+                    <button class="btn btn-outline btn-sm" onclick="document.getElementById('principalFilterTeacher').value=''; document.getElementById('principalFilterClass').value=''; document.getElementById('principalFilterSubject').value=''; document.getElementById('principalFilterDate').value=''; renderPrincipalDashboard();">Clear Filters</button>
+                </div>
+
+                <!-- Sub-tabs -->
+                <div class="principal-subtabs">
+                    <button class="principal-subtab active" data-subtab="pending" onclick="switchPrincipalSubtab(this, 'pending')">
+                        ⏳ Pending Review <span class="badge" id="pendingCountBadge" style="display:none;">0</span>
+                    </button>
+                    <button class="principal-subtab" data-subtab="history" onclick="switchPrincipalSubtab(this, 'history')">
+                        ✅ Approved History
+                    </button>
+                </div>
+                <div id="principalDashboardContent" class="principal-content">
+                    <div class="principal-loading">
+                        <div class="spinner"></div>
+                        <p>Loading submissions...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== TAB: ADMIN ====== -->
+        <section class="tab-content" id="tab-admin">
+            <div class="card">
+                <div class="card-title">🛠️ Admin Panel</div>
+                <p>Manage users, upload timetables, and configure school settings.</p>
+                <div id="adminPanelContent" class="mt-12">
+                    <!-- Loaded dynamically via admin.js -->
+                    <div style="text-align:center; padding: 20px; color: var(--text-muted);">
+                        Module under construction.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== TAB: NOTIFICATIONS ====== -->
+        <section class="tab-content" id="tab-notifications">
+            <div class="card" style="padding: 0; overflow: hidden; max-width: 800px; margin: 0 auto;">
+                <div class="principal-tab-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border);">
+                    <h2 class="card-title" style="margin:0;">🔔 Notifications</h2>
+                    <button class="btn btn-outline btn-sm" onclick="markAllNotificationsRead()">Mark all as read</button>
+                </div>
+                <div id="notificationsList" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+                    <!-- Notifications rendered here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== TAB: SETTINGS ====== -->
+        <section class="tab-content" id="tab-settings">
+            <div class="card">
+                <div class="card-title">⚙️ Settings</div>
+
+                <!-- Periods -->
+                <div class="settings-group">
+                    <div class="group-title">📊 Schedule</div>
+                    <div class="settings-row">
+                        <div>
+                            <label for="settingsPeriods">Number of periods per day</label>
+                            <input type="number" id="settingsPeriods" min="1" max="20" value="8" />
+                            <div class="settings-help">Changes will apply to new daily entries.</div>
+                        </div>
+                        <button class="btn btn-primary" id="settingsSavePeriods">Save</button>
+                    </div>
+                </div>
+
+                <!-- Principal Settings -->
+                <div class="settings-group" id="principalSettingsGroup" style="display: none;">
+                    <div class="group-title">👔 Principal Settings</div>
+                    <div class="settings-row">
+                        <div>
+                            <label for="settingsLateCutoff">Late Submission Cutoff Time</label>
+                            <input type="time" id="settingsLateCutoff" value="16:00" />
+                            <div class="settings-help">Diaries submitted after this time will be marked as "Late Submissions" on the dashboard.</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveLateCutoff()">Save</button>
+                    </div>
+                </div>
+
+                <!-- Teacher Subject -->
+                <div class="settings-group">
+                    <div class="group-title">🏫 Teacher Subject</div>
+                    <div class="settings-row">
+                        <div style="flex:1;">
+                            <label for="settingsTeacherSubject">Registered Subject</label>
+                            <select id="settingsTeacherSubject" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text);">
+                                <option value="">Loading subjects...</option>
+                            </select>
+                            <div class="settings-help">Filters autocomplete options to only show topics from this subject.</div>
+                        </div>
+                        <button class="btn btn-primary" id="settingsSaveSubject">Save</button>
+                    </div>
+                </div>
+
+                <!-- Curriculum CSV Endpoint -->
+                <div class="settings-group">
+                    <div class="group-title">🔗 Dynamic Curriculum Source</div>
+                    <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:12px;">
+                        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+                            <div style="flex:1;min-width:140px;">
+                                <label for="settingsCurriculumBoard">Board</label>
+                                <select id="settingsCurriculumBoard" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
+                                    <option value="">Loading boards...</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;min-width:100px;">
+                                <label for="settingsCurriculumClass">Class</label>
+                                <select id="settingsCurriculumClass" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
+                                    <option value="">Loading classes...</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;min-width:140px;">
+                                <label for="settingsCurriculumSubject">Subject</label>
+                                <select id="settingsCurriculumSubject" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
+                                    <option value="">Loading subjects...</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;min-width:120px;">
+                                <label for="settingsCurriculumFileType">File Type</label>
+                                <select id="settingsCurriculumFileType" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
+                                    <option value="topics" selected>topics</option>
+                                    <option value="syllabus">syllabus</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <button class="btn btn-primary btn-sm" id="settingsSaveCurriculumConfig">Save Config</button>
+                            <button class="btn btn-outline btn-sm" id="settingsClearCacheBtn" onclick="clearApiCache(); showToast('🧹 API Cache cleared!', 'success');">🧹 Clear API Cache</button>
+                            <button class="btn btn-outline btn-sm" id="settingsRefreshCurriculum">🔄 Fetch Latest Now</button>
+                            <button class="btn btn-success btn-sm" id="fetchTopicsBtn" onclick="fetchTopicsFromAPI()">🌐 Fetch Dynamic Topics</button>
+                            <span id="fetchTopicsStatus" class="text-muted text-sm" style="margin-left:8px;"></span>
+                        </div>
+                        <div class="settings-help">Curriculum options and topic tags are loaded dynamically via URL endpoints in the backend database.</div>
+                    </div>
+                </div>
+
+
+            <!-- CSV -->
+            <div class="settings-group">
+                <div class="group-title">📁 Import / Export</div>
+                <div class="settings-row">
+                    <button class="btn btn-outline" id="settingsExportCSV">📤 Export CSV</button>
+                    <button class="btn btn-outline" id="settingsImportCSV">📥 Import CSV</button>
+                    <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
+                    <span class="text-muted text-sm" style="align-self:center;">Format:
+                        date,period_number,class_section,classwork,homework,photo_url</span>
+                </div>
+            </div>
+
+            <!-- Danger -->
+            <div class="settings-group">
+                <div class="group-title">⚠️ Danger Zone</div>
+                <div class="settings-row">
+                    <button class="btn btn-outline" onclick="handleSignOut()" style="border-color: #ef4444; color: #ef4444;">🚪 Log Out</button>
+                    <button class="btn btn-danger" id="settingsClearAll">🗑 Clear All Data</button>
+                    <span class="text-muted text-sm" style="align-self:center;">This will remove all local
+                        activities.</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ====== REVIEW MODAL (PRINCIPAL) ====== -->
+    <div id="review-modal-overlay" class="review-modal-overlay" style="display:none;">
+        <div class="review-modal">
+            <div class="review-modal-header">
+                <div>
+                    <h3 id="reviewModalTitle" class="review-modal-title"></h3>
+                    <p id="reviewModalSubtitle" class="review-modal-subtitle"></p>
+                </div>
+                <button class="btn-icon" onclick="closeReviewModal()" title="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div id="reviewModalPeriods" class="review-modal-periods">
+                <!-- Periods loaded here -->
+            </div>
+            <!-- Revision note input (hidden by default) -->
+            <div id="revisionNoteInput" class="revision-note-input hidden">
+                <label for="principalRevisionNote">📝 Revision Note for Teacher</label>
+                <textarea id="principalRevisionNote" placeholder="Describe what the teacher needs to correct…" rows="3"></textarea>
+            </div>
+            <div class="review-modal-actions">
+                <button class="btn btn-outline" style="margin-right: auto;" onclick="openPrincipalHistory()">🕐 Audit Trail</button>
+                <button class="btn btn-outline" onclick="closeReviewModal()">Cancel</button>
+                <button class="btn btn-danger" id="rejectEntryBtn" onclick="handleRejectEntry()">❌ Reject</button>
+                <button class="btn btn-warning" id="requestRevisionBtn" onclick="handleRequestRevision()">
+                    🔄 Request Revision
+                </button>
+                <button class="btn btn-success" id="approveEntryBtn" onclick="handleApproveEntry()">
+                    ✅ Sign &amp; Approve
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== FETCH CONFIG OVERLAY ====== -->
+    <div id="config-fetch-overlay" class="auth-overlay">
+        <div class="auth-card">
+            <span class="auth-logo">🔑</span>
+            <h2 class="auth-title">Fetch Supabase Config</h2>
+            <p class="auth-subtitle">Enter credentials to fetch your configuration</p>
+            
+            <div class="auth-form-group">
+                <label for="fetchConfigUuid">UUID (Optional)</label>
+                <input type="text" id="fetchConfigUuid" placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000" autocomplete="off" />
+            </div>
+            
+            <div class="auth-form-group">
+                <label for="fetchConfigPin">PIN (Required)</label>
+                <input type="password" id="fetchConfigPin" placeholder="Enter PIN" autocomplete="off" />
+            </div>
+            
+            <div style="display:flex;gap:12px;margin-top:28px;">
+                <button class="btn btn-outline" id="cancelFetchConfigBtn" style="flex:1;">Cancel</button>
+                    <button class="btn btn-primary" id="submitFetchConfigBtn" style="flex:1;">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- HISTORY MODAL -->
+    <!-- ========================================== -->
+    <div id="history-modal-overlay" class="history-modal-overlay">
+        <div class="history-panel">
+            <div class="history-panel-header">
+                <h2>🕐 Revision History</h2>
+                <button class="btn btn-outline btn-xs" onclick="closeHistoryModal()">✕ Close</button>
+            </div>
+            <div class="history-panel-body" id="history-timeline-container">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Intro.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
+
+    <script src="js/data.js?v=7.1"></script>
+    <script src="js/toast.js?v=7.1"></script>
+    <script src="js/supabase.js?v=7.1"></script>
+    <script src="js/file-upload.js?v=7.1"></script>
+    <script src="js/env.js"></script>
+    <script src="js/storage-manager.js?v=7.1"></script>
+    <script src="js/api.js?v=7.1"></script>
+    <script src="js/csv.js?v=7.1"></script>
+    <script src="js/auth.js?v=7.1"></script>
+    <script src="js/approval.js?v=1.0"></script>
+    <script src="js/history.js?v=1.0"></script>
+    <script src="js/ui.js?v=7.1"></script>
+    <script src="js/curriculum.js?v=7.1"></script>
+    <script src="js/autocomplete.js?v=7.1"></script>
+    <script src="js/tour.js?v=7.1"></script>
+    <script src="js/timetable.js?v=7.1"></script>
+    <script src="js/admin.js?v=7.1"></script>
+    <script src="js/principal.js?v=1.0"></script>
+    <script src="js/notifications.js?v=1.0"></script>
+    <script src="js/app.js?v=7.1"></script>
+
+    <!-- ====== TEACHER ANALYTICS MODAL ====== -->
+    <div id="teacher-analytics-modal" class="review-modal-overlay" style="display:none;">
+        <div class="review-modal" style="max-width: 600px;">
+            <div class="review-modal-header">
+                <div>
+                    <h3 id="analyticsModalTitle" class="review-modal-title">Teacher Analytics</h3>
+                    <p id="analyticsModalSubtitle" class="review-modal-subtitle">Last 30 Days Summary</p>
+                </div>
+                <button class="btn-icon" onclick="closeAnalyticsModal()" title="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="analytics-content" style="padding: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                    <div class="kpi-card" style="background: var(--bg-main); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                        <div style="font-size: 24px; font-weight: 600; color: var(--primary);" id="analyticsCompletionRate">0/0</div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Diary Completion</div>
+                    </div>
+                    <div class="kpi-card" style="background: var(--bg-main); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                        <div style="font-size: 24px; font-weight: 600; color: #f59e0b;" id="analyticsRevisionCount">0</div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Revision Count</div>
+                    </div>
+                    <div class="kpi-card" style="background: var(--bg-main); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                        <div style="font-size: 24px; font-weight: 600; color: #10b981;" id="analyticsAverageTime">--</div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Avg Submission Time</div>
+                    </div>
+                    <div class="kpi-card" style="background: var(--bg-main); padding: 16px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center;">
+                        <div style="font-size: 24px; font-weight: 600; color: #6366f1;" id="analyticsSignedCount">0</div>
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Approved Diaries</div>
+                    </div>
+                </div>
+                
+                <h4 style="margin: 0 0 12px 0; color: var(--text);">Activity (Last 30 Days)</h4>
+                <div class="analytics-bar-chart" id="analyticsBarChart">
+                    <!-- Bars injected via JS -->
+                </div>
+            </div>
+            <div class="review-modal-actions">
+                <button class="btn btn-outline" onclick="closeAnalyticsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== LIGHTBOX MODAL ====== -->
+    <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+        <div class="lightbox-container" onclick="event.stopPropagation()">
+            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+            <img id="lightbox-img" class="lightbox-image" src="" alt="Activity Photo" />
+        </div>
+    </div>
+</body>
+
+</html>

@@ -26,7 +26,7 @@ function parseClassSection(val) {
     return { class: '', section: val };
 }
 
-function renderDailyTab() {
+async function renderDailyTab() {
     const dateInput = document.getElementById('dailyDate');
     if (!dateInput.value) dateInput.value = getTodayStr();
     const dateStr = dateInput.value;
@@ -35,230 +35,442 @@ function renderDailyTab() {
     const entry = getDayEntry(dateStr);
     const periods = entry ? entry.periods : [];
 
-    const tbody = document.getElementById('periodTableBody');
-    tbody.innerHTML = '';
+    const container = document.getElementById('periodCards');
+    if (!container) return; // Might be hidden
+    container.innerHTML = '<div style="text-align:center; padding: 20px;"><span class="spinner"></span> Loading timetable...</div>';
+    
+    // Fetch timetable
+    if (typeof fetchTodayTimetable === 'function') {
+        await fetchTodayTimetable(dateStr);
+    }
+    const timetableMap = window.currentTimetableMap || {}; 
+    container.innerHTML = '';
+
     for (let i = 1; i <= periodsPerDay; i++) {
         const existing = periods.find(p => p.periodNumber === i) || {
-            periodNumber: i, classSection: '', subjectTopics: '',
-            classwork: '', homework: '', photoUrl: ''
+            periodNumber: i, classSection: '', subject: '',
+            classwork: '', homework: '', photoUrl: '', files: []
         };
-        const tr = document.createElement('tr');
+        const timetable = timetableMap[i] || {};
         
-        let photoHtml = '';
-        const pUrl = existing.photoUrl || '';
-        if (pUrl) {
-            photoHtml = `
-                <div class="photo-cell">
-                    <div class="photo-preview-container">
-                        <img src="${pUrl}" class="photo-preview-thumb" onclick="openLightbox('${pUrl}')" />
-                        <button class="photo-remove-btn" onclick="removePhotoRow(${i})" title="Remove photo">&times;</button>
-                    </div>
-                    <input type="hidden" class="daily-photo-url" data-period="${i}" value="${escHtml(pUrl)}" />
-                </div>
-            `;
-        } else {
-            photoHtml = `
-                <div class="photo-cell">
-                    <button class="btn btn-outline btn-xs btn-photo-trigger" onclick="triggerPhotoUpload(${i})" style="margin: 0 auto; display: flex;">📷 Add</button>
-                    <input type="file" id="photo-input-${i}" class="hidden" accept="image/*" onchange="handlePhotoSelect(event, ${i})" />
-                    <input type="hidden" class="daily-photo-url" data-period="${i}" value="" />
-                </div>
-            `;
+        const classSection = existing.classSection || timetable.classSection || '';
+        const subject = existing.subject || timetable.subject || '';
+        const classwork = existing.classwork || '';
+        const homework = existing.homework || '';
+        const existingFiles = existing.files || [];
+        
+        // Initialize file state
+        window.periodFiles = window.periodFiles || {};
+        window.periodFiles[i] = {
+            existing: existingFiles,
+            pending: []
+        };
+        
+        // Asynchronously refresh signed URLs
+        if (existingFiles.length > 0 && window.FileUploadService) {
+            const pathsToRefresh = existingFiles.filter(f => f.path).map(f => f.path);
+            if (pathsToRefresh.length > 0) {
+                window.FileUploadService.getSignedUrls(pathsToRefresh).then(urlMap => {
+                    let updated = false;
+                    for (const f of window.periodFiles[i].existing) {
+                        if (f.path && urlMap[f.path] && f.url !== urlMap[f.path]) {
+                            f.url = urlMap[f.path];
+                            updated = true;
+                        }
+                    }
+                    if (updated) {
+                        const zone = document.getElementById(`file-zone-${i}`);
+                        if (zone) zone.innerHTML = renderFileAttachZone(i);
+                        
+                        // update local storage silently
+                        const entry = getDayEntry(dateStr);
+                        if (entry) {
+                            const p = entry.periods.find(p => p.periodNumber === i);
+                            if (p) {
+                                p.files = window.periodFiles[i].existing;
+                                saveDayEntry(dateStr, entry.periods);
+                            }
+                        }
+                    }
+                }).catch(console.error);
+            }
         }
-
-        const parsed = parseClassSection(existing.classSection || '');
+        
+        const card = document.createElement('div');
+        card.className = 'period-card';
+        
+        const filesHtml = `
+            <div class="file-attach-zone" id="file-zone-${i}">
+                ${renderFileAttachZone(i)}
+            </div>
+        `;
+        
+        // Ensure dropdown options match the parsed class
+        const parsed = parseClassSection(classSection);
         const classDropdownOptions = [
             '<option value="">Class...</option>',
             ...[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${parsed.class === String(n) ? 'selected' : ''}>${n}</option>`)
-        ].join('\n');
+        ].join('');
 
-        tr.innerHTML = `
-          <td class="period-num">${i}</td>
-          <td>
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <select class="daily-class-dropdown" data-period="${i}" style="width:100%; padding:4px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text); font-size:13px;">
-                ${classDropdownOptions}
-              </select>
-              <input type="text" class="daily-section-input" data-period="${i}" value="${escHtml(parsed.section)}" placeholder="Section (e.g. A)" style="width:100%; padding:4px 8px; font-size:13px; margin-top:2px;" />
+        card.innerHTML = `
+          <div class="period-card-header">
+            <span class="period-badge">Period ${i}</span>
+            <div class="period-meta" style="display:flex; gap:8px; align-items:center;">
+                <select class="daily-class-dropdown" data-period="${i}" style="width:80px; padding:2px; font-size:12px;">${classDropdownOptions}</select>
+                <input type="text" class="daily-section-input" data-period="${i}" value="${escHtml(parsed.section)}" placeholder="Sec" style="width:40px; padding:2px; font-size:12px;" />
+                <input type="text" class="daily-subject-input" data-period="${i}" value="${escHtml(subject)}" placeholder="Subject" style="width:80px; padding:2px; font-size:12px;" />
             </div>
-          </td>
-          <td>
-            <div ${i === 1 ? 'id="tourClassworkWrap"' : ''} style="position: relative; width: 100%;">
-              <input type="text" class="daily-work" data-period="${i}" value="${escHtml(existing.classwork || '')}" placeholder="What was taught?" />
-            </div>
-          </td>
-          <td><input type="text" class="daily-home" data-period="${i}" value="${escHtml(existing.homework || '')}" placeholder="Homework assigned?" /></td>
-          <td>${photoHtml}</td>
+          </div>
+          <label style="font-size:12px; margin-top:8px;">Classwork</label>
+          <textarea class="daily-work" data-period="${i}" rows="2" placeholder="What was taught?">${escHtml(classwork)}</textarea>
+          <label style="font-size:12px; margin-top:8px;">Homework</label>
+          <textarea class="daily-home" data-period="${i}" rows="2" placeholder="Homework assigned?">${escHtml(homework)}</textarea>
+          <div class="period-card-footer">
+            <div>${filesHtml}</div>
+          </div>
         `;
-        tbody.appendChild(tr);
+        container.appendChild(card);
     }
-    document.getElementById('dailyStatus').textContent = entry ? `✅ Loaded entry for ${formatDate(dateStr)}` :
-        `📝 No entry yet for ${formatDate(dateStr)}`;
+    
+    const dailyStatus = document.getElementById('dailyStatus');
+    if (dailyStatus) {
+        dailyStatus.textContent = entry ? `✅ Loaded entry for ${formatDate(dateStr)}` :
+            `📝 No entry yet for ${formatDate(dateStr)}`;
+    }
+
+    // Refresh approval status banner and button visibility
+    updateApprovalBanner(dateStr);
 }
 
-function triggerPhotoUpload(periodNumber) {
-    document.getElementById(`photo-input-${periodNumber}`).click();
-}
+// ================================================================
+//  APPROVAL BANNER (teacher view)
+// ================================================================
+async function updateApprovalBanner(dateStr) {
+    const banner = document.getElementById('approvalStatusBanner');
+    const icon = document.getElementById('approvalStatusIcon');
+    const title = document.getElementById('approvalStatusTitle');
+    const subtitle = document.getElementById('approvalStatusSubtitle');
+    const revisionBox = document.getElementById('revisionNoteBox');
+    const revisionText = document.getElementById('revisionNoteText');
+    const submitBtn = document.getElementById('submitForApprovalBtn');
+    const saveBtn = document.getElementById('saveDailyBtn');
+    const resetBtn = document.getElementById('resetDailyBtn');
 
-function removePhotoRow(periodNumber) {
-    const cell = document.querySelector(`#photo-input-${periodNumber}`)?.closest('.photo-cell') || 
-                 document.querySelectorAll('.photo-cell')[periodNumber - 1];
-    if (cell) {
-        cell.innerHTML = `
-            <button class="btn btn-outline btn-xs btn-photo-trigger" onclick="triggerPhotoUpload(${periodNumber})" style="margin: 0 auto; display: flex;">📷 Add</button>
-            <input type="file" id="photo-input-${periodNumber}" class="hidden" accept="image/*" onchange="handlePhotoSelect(event, ${periodNumber})" />
-            <input type="hidden" class="daily-photo-url" data-period="${periodNumber}" value="" />
-        `;
+    if (!banner) return;
+
+    // Only show for Supabase-authenticated users
+    const client = typeof getSupabaseClient === 'function' ? getSupabaseClient() : null;
+    if (!client) {
+        banner.classList.add('hidden');
+        if (submitBtn) submitBtn.style.display = 'none';
+        return;
+    }
+
+    const dayStatus = await fetchDayStatus(dateStr);
+
+    const periodCards = document.getElementById('periodCards');
+    const allInputs = periodCards ? periodCards.querySelectorAll('input, textarea, select') : [];
+
+    if (!dayStatus) {
+        // No submitted entry — draft / empty state
+        banner.classList.add('hidden');
+        if (submitBtn) submitBtn.style.display = 'block';
+        allInputs.forEach(el => el.disabled = false);
+        if (saveBtn) saveBtn.disabled = false;
+        if (resetBtn) resetBtn.disabled = false;
+        return;
+    }
+
+    banner.classList.remove('hidden');
+    revisionBox.classList.add('hidden');
+
+    switch (dayStatus.status) {
+        case 'submitted': {
+            icon.textContent = '⏳';
+            title.textContent = 'Submitted — Awaiting Approval';
+            const submittedAt = dayStatus.submittedAt
+                ? new Date(dayStatus.submittedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                : '';
+            subtitle.textContent = submittedAt ? `Sent for review on ${submittedAt}` : 'Awaiting principal review';
+            banner.className = 'approval-status-banner status-submitted';
+            // Lock editing
+            allInputs.forEach(el => el.disabled = true);
+            if (saveBtn) saveBtn.disabled = true;
+            if (resetBtn) resetBtn.disabled = true;
+            if (submitBtn) submitBtn.style.display = 'none';
+            break;
+        }
+        case 'approved': {
+            icon.textContent = '✅';
+            title.textContent = 'Approved & Signed';
+            const approvedAt = dayStatus.approvedAt
+                ? new Date(dayStatus.approvedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                : '';
+            subtitle.textContent = approvedAt ? `Signed on ${approvedAt}` : 'Diary locked';
+            banner.className = 'approval-status-banner status-approved';
+            // Lock editing permanently
+            allInputs.forEach(el => el.disabled = true);
+            if (saveBtn) saveBtn.disabled = true;
+            if (resetBtn) resetBtn.disabled = true;
+            if (submitBtn) submitBtn.style.display = 'none';
+            break;
+        }
+        case 'revision_requested': {
+            icon.textContent = '🔄';
+            title.textContent = 'Revision Requested';
+            subtitle.textContent = 'Please review the principal’s note and resubmit.';
+            banner.className = 'approval-status-banner status-revision';
+            // Show revision note
+            if (dayStatus.revisionNote) {
+                revisionBox.classList.remove('hidden');
+                if (revisionText) revisionText.textContent = dayStatus.revisionNote;
+            }
+            // Allow editing again
+            allInputs.forEach(el => el.disabled = false);
+            if (saveBtn) saveBtn.disabled = false;
+            if (resetBtn) resetBtn.disabled = false;
+            if (submitBtn) submitBtn.style.display = 'block';
+            break;
+        }
+        default: {
+            // e.g., 'draft'
+            banner.classList.add('hidden');
+            if (submitBtn) submitBtn.style.display = 'block';
+            allInputs.forEach(el => el.disabled = false);
+        }
     }
 }
 
-function handlePhotoSelect(event, periodNumber) {
-    const file = event.target.files[0];
-    if (!file) return;
+async function handleSubmitForApproval() {
+    const dateStr = document.getElementById('dailyDate').value;
+    if (!dateStr) { showToast('Please select a date first.', 'warning'); return; }
 
-    const cell = event.target.closest('.photo-cell');
-    const triggerBtn = cell.querySelector('.btn-photo-trigger');
-    const originalText = triggerBtn.textContent;
-    triggerBtn.disabled = true;
-    triggerBtn.innerHTML = '⏳...';
+    const btn = document.getElementById('submitForApprovalBtn');
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Submitting...';
 
-    compressImage(file, 800, 800, 0.7).then(dataUrl => {
-        cell.innerHTML = `
-            <div class="photo-preview-container">
-                <img src="${dataUrl}" class="photo-preview-thumb" onclick="openLightbox('${dataUrl}')" />
-                <button class="photo-remove-btn" onclick="removePhotoRow(${periodNumber})" title="Remove photo">&times;</button>
-            </div>
-            <input type="hidden" class="daily-photo-url" data-period="${periodNumber}" value="${escHtml(dataUrl)}" />
-        `;
-    }).catch(err => {
-        showToast('Image processing failed: ' + err.message, 'error');
-        triggerBtn.disabled = false;
-        triggerBtn.textContent = originalText;
-    });
+    // Save first to ensure latest data is synced
+    await saveDaily();
+
+    const result = await submitDayForApproval(dateStr);
+
+    btn.disabled = false;
+    btn.innerHTML = origText;
+
+    if (!result.ok) {
+        showToast(`❌ Submit failed: ${result.error}`, 'error');
+        return;
+    }
+
+    showToast(`📤 Diary submitted for approval! (${result.count} period${result.count !== 1 ? 's' : ''})`, 'success');
+    updateApprovalBanner(dateStr);
 }
 
-function compressImage(file, maxWidth, maxHeight, quality) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = event => {
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
+window.updateApprovalBanner = updateApprovalBanner;
+window.handleSubmitForApproval = handleSubmitForApproval;
 
-                if (width > height) {
-                    if (width > maxWidth) {
-                        height *= maxWidth / width;
-                        width = maxWidth;
-                    }
-                } else {
-                    if (height > maxHeight) {
-                        width *= maxHeight / height;
-                        height = maxHeight;
-                    }
-                }
+// ================================================================
+//  AUTOSAVE
+// ================================================================
 
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
 
-                const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                resolve(dataUrl);
-            };
-            img.onerror = err => reject(err);
-        };
-        reader.onerror = err => reject(err);
+function renderFileAttachZone(periodNumber) {
+    const state = window.periodFiles[periodNumber];
+    if (!state) return '';
+    
+    const allFiles = [...state.existing, ...state.pending];
+    
+    let html = '<div class="file-list">';
+    allFiles.forEach((fileObj, idx) => {
+        const isExisting = fileObj.isExisting;
+        const icon = window.FileUploadService ? window.FileUploadService.getFileIcon(fileObj.type) : '📎';
+        const sizeStr = window.FileUploadService ? window.FileUploadService.formatFileSize(fileObj.size) : '';
+        
+        html += `
+            <div class="file-item">
+                <span class="file-item-icon">${icon}</span>
+                <span class="file-item-name">
+                    ${isExisting && fileObj.url ? `<a href="${fileObj.url}" target="_blank">${escHtml(fileObj.name)}</a>` : escHtml(fileObj.name)}
+                </span>
+                <span class="file-item-size">${sizeStr}</span>
+                <button type="button" class="file-item-remove" onclick="removeFile(${periodNumber}, ${idx}, ${isExisting})" title="Remove file">&times;</button>
+            </div>
+        `;
     });
+    html += '</div>';
+    
+    if (allFiles.length < (window.FileUploadService?.MAX_FILES_PER_PERIOD || 10)) {
+        html += `
+            <button type="button" class="file-add-btn" onclick="triggerFileUpload(${periodNumber})">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Attach Files
+            </button>
+            <input type="file" id="file-input-${periodNumber}" multiple style="display:none;" onchange="handleFilesSelect(event, ${periodNumber})" />
+        `;
+    }
+    
+    return html;
+}
+
+function triggerFileUpload(periodNumber) {
+    document.getElementById(`file-input-${periodNumber}`).click();
+}
+
+function handleFilesSelect(event, periodNumber) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    const state = window.periodFiles[periodNumber];
+    const allFiles = [...state.existing, ...state.pending];
+    
+    let addedCount = 0;
+    
+    for (const file of files) {
+        if (window.FileUploadService) {
+            const validation = window.FileUploadService.validateFileForPeriod(file, allFiles);
+            if (!validation.valid) {
+                showToast(validation.error, 'error');
+                continue;
+            }
+        }
+        
+        state.pending.push(file);
+        allFiles.push(file);
+        addedCount++;
+    }
+    
+    if (addedCount > 0) {
+        document.getElementById(`file-zone-${periodNumber}`).innerHTML = renderFileAttachZone(periodNumber);
+        
+        // Trigger autosave if needed
+        const e = new Event('input', { bubbles: true });
+        document.getElementById(`file-zone-${periodNumber}`).dispatchEvent(e);
+    }
+    
+    // Reset input
+    event.target.value = '';
+}
+
+async function removeFile(periodNumber, index, isExisting) {
+    const state = window.periodFiles[periodNumber];
+    
+    if (isExisting) {
+        if (!confirm('Are you sure you want to delete this file? This cannot be undone.')) return;
+        const fileObj = state.existing[index];
+        
+        // Optimistically remove from UI
+        state.existing.splice(index, 1);
+        document.getElementById(`file-zone-${periodNumber}`).innerHTML = renderFileAttachZone(periodNumber);
+        
+        try {
+            if (window.FileUploadService && fileObj.id) {
+                await window.FileUploadService.deleteAttachment(fileObj.id, fileObj.path);
+                showToast('File deleted successfully', 'success');
+            }
+        } catch (err) {
+            // Revert on failure
+            state.existing.splice(index, 0, fileObj);
+            document.getElementById(`file-zone-${periodNumber}`).innerHTML = renderFileAttachZone(periodNumber);
+            showToast('Failed to delete file: ' + err.message, 'error');
+        }
+    } else {
+        // Just remove from pending array
+        const pendingIndex = index - state.existing.length;
+        if (pendingIndex >= 0 && pendingIndex < state.pending.length) {
+            state.pending.splice(pendingIndex, 1);
+            document.getElementById(`file-zone-${periodNumber}`).innerHTML = renderFileAttachZone(periodNumber);
+        }
+    }
 }
 
 async function saveDaily() {
     const dateStr = document.getElementById('dailyDate').value;
-    if (!dateStr) { showToast('Please select a date.', 'warning'); return; }
-    const rows = document.querySelectorAll('#periodTableBody tr');
+    if (!dateStr) { 
+        if (!window.isAutoSaving) showToast('Please select a date.', 'warning'); 
+        return; 
+    }
+    const cards = document.querySelectorAll('.period-card');
     const periods = [];
     let hasData = false;
 
     const saveBtn = document.getElementById('saveDailyBtn');
-    const originalBtnHtml = saveBtn.innerHTML;
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
+    const stickySaveBtn = document.getElementById('stickySaveBtn');
+    
+    let originalBtnHtml = '';
+    if (!window.isAutoSaving) {
+        if (saveBtn) {
+            originalBtnHtml = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
+        }
+        if (stickySaveBtn) {
+            stickySaveBtn.disabled = true;
+            stickySaveBtn.textContent = 'Saving...';
+        }
+    }
 
     try {
-        for (const tr of rows) {
-            const periodNum = parseInt(tr.querySelector('.period-num')?.textContent || '0');
-            const classDropdownVal = tr.querySelector('.daily-class-dropdown')?.value || '';
-            const sectionVal = tr.querySelector('.daily-section-input')?.value?.trim() || '';
+        for (const card of cards) {
+            const classDropdown = card.querySelector('.daily-class-dropdown');
+            const periodNum = parseInt(classDropdown?.dataset.period || '0');
+            const classDropdownVal = classDropdown?.value || '';
+            const sectionVal = card.querySelector('.daily-section-input')?.value?.trim() || '';
             const classVal = (classDropdownVal && sectionVal) ? `${classDropdownVal}-${sectionVal}` : (classDropdownVal || sectionVal);
-            const workVal = tr.querySelector('.daily-work')?.value?.trim() || '';
-            const homeVal = tr.querySelector('.daily-home')?.value?.trim() || '';
-            let photoVal = tr.querySelector('.daily-photo-url')?.value || '';
-
-            if (photoVal.startsWith('data:image/')) {
-                const client = getSupabaseClient();
-                if (client) {
-                    try {
-                        const fileBlob = dataURLtoBlob(photoVal);
-                        const fileName = `activities/${dateStr}_p${periodNum}.jpg`;
-                        
-                        const { data, error } = await client.storage
-                            .from('activity_photos')
-                            .upload(fileName, fileBlob, {
-                                contentType: 'image/jpeg',
-                                upsert: true
-                            });
-                        
-                        if (error) {
-                            console.warn(`Photo upload failed for Period ${periodNum}: ${error.message}`);
-                            showToast(`⚠️ Photo upload failed (Supabase bucket 'activity_photos' not found or misconfigured). Saving locally instead!`, 'warning', 6000);
-                        } else {
-                            const { data: urlData } = client.storage
-                                .from('activity_photos')
-                                .getPublicUrl(fileName);
-                            photoVal = urlData.publicUrl;
-                        }
-                    } catch (uploadErr) {
-                        console.warn(`Photo upload failed:`, uploadErr);
-                        showToast(`⚠️ Photo upload failed. Saved locally.`, 'warning', 5000);
-                    }
-                }
-            }
+            const subjectVal = card.querySelector('.daily-subject-input')?.value?.trim() || '';
+            const workVal = card.querySelector('.daily-work')?.value?.trim() || '';
+            const homeVal = card.querySelector('.daily-home')?.value?.trim() || '';
+            const state = window.periodFiles ? window.periodFiles[periodNum] : { existing: [], pending: [] };
 
             periods.push({
                 periodNumber: periodNum,
                 classSection: classVal,
-                subjectTopics: '',
+                subject: subjectVal,
                 classwork: workVal,
                 homework: homeVal,
-                photoUrl: photoVal
+                files: state.existing,
+                pendingFiles: state.pending
             });
 
-            if (classVal || workVal || homeVal || photoVal) hasData = true;
+            if (classVal || subjectVal || workVal || homeVal || state.existing.length > 0 || state.pending.length > 0) hasData = true;
         }
 
-        if (!hasData) {
-            if (!confirm('All fields are empty. Do you want to clear this day\'s entry?')) {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = originalBtnHtml;
+        if (!hasData && !window.isAutoSaving) {
+            if (!confirm("All fields are empty. Do you want to clear this day's entry?")) {
+                if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalBtnHtml; }
+                if (stickySaveBtn) { stickySaveBtn.disabled = false; stickySaveBtn.textContent = '✓ Save All'; }
                 return;
             }
         }
 
-        saveDayEntry(dateStr, periods);
-        showToast(`✅ Saved activities for ${formatDate(dateStr)}`, 'success');
-        renderDailyTab();
-        updateBadge();
-        if (document.getElementById('tab-view').classList.contains('active')) renderViewTab();
+        if (typeof saveEntryToSupabase === 'function') {
+            const result = await saveEntryToSupabase(dateStr, periods);
+            if (!result.ok && !window.isAutoSaving) {
+                showToast(`⚠️ Sync failed. Saved offline.`, 'warning');
+            } else if (result.ok && !window.isAutoSaving) {
+                showToast(`✅ Saved activities for ${formatDate(dateStr)}`, 'success');
+                renderDailyTab();
+            }
+        } else {
+            saveDayEntry(dateStr, periods);
+            if (!window.isAutoSaving) {
+                showToast(`✅ Saved activities for ${formatDate(dateStr)}`, 'success');
+                renderDailyTab();
+            }
+        }
+        
+        if (typeof updateBadge === 'function') updateBadge();
+        if (document.getElementById('tab-view')?.classList.contains('active')) renderViewTab();
     } catch (err) {
-        showToast(`❌ Error saving: ${err.message}`, 'error');
+        if (!window.isAutoSaving) showToast(`❌ Error saving: ${err.message}`, 'error');
     } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalBtnHtml;
+        if (!window.isAutoSaving) {
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalBtnHtml; }
+            if (stickySaveBtn) { stickySaveBtn.disabled = false; stickySaveBtn.textContent = '✓ Save All'; }
+        }
     }
 }
+
 
 function copyPreviousDay() {
     const dateStr = document.getElementById('dailyDate').value;
@@ -342,6 +554,10 @@ function renderViewTab() {
     const sort = document.getElementById('viewSort').value;
 
     let filtered = [...activities];
+    const currentEmail = localStorage.getItem('lastLoggedInEmail');
+    if (currentEmail) {
+        filtered = filtered.filter(day => day.teacher_email === currentEmail);
+    }
 
     if (search) {
         filtered = filtered.filter(day => {
@@ -356,6 +572,12 @@ function renderViewTab() {
 
     if (dateFrom) filtered = filtered.filter(d => d.date >= dateFrom);
     if (dateTo) filtered = filtered.filter(d => d.date <= dateTo);
+
+    // Status filter (from cloud statuses stored on activities if available)
+    const statusFilter = document.getElementById('viewStatusFilter');
+    if (statusFilter && statusFilter.value !== 'all') {
+        filtered = filtered.filter(d => (d.status || 'draft') === statusFilter.value);
+    }
 
     filtered.sort((a, b) => {
         if (sort === 'date-asc') return a.date.localeCompare(b.date);
@@ -377,26 +599,50 @@ function renderViewTab() {
     let html = '';
     for (const day of filtered) {
         const dateDisplay = formatDate(day.date);
-        const periodCount = day.periods.filter(p => p.classSection || p.classwork || p.homework || p.photoUrl).length;
+        const periodCount = day.periods.filter(p => p.classSection || p.classwork || p.homework || p.photoUrl || (p.files && p.files.length > 0)).length;
         const total = day.periods.length;
+        
+        const progressPercent = total > 0 ? Math.round((periodCount / total) * 100) : 0;
+        let progressColor = '#64748b'; // Slate (Neutral)
+        if (progressPercent >= 50) progressColor = '#3b82f6'; // Blue (In Progress)
+        if (progressPercent === 100) progressColor = '#10b981'; // Green (Complete)
+
+        // Status pill
+        const dayStatus = day.status || 'draft';
+        const statusPillMap = {
+            draft: '<span class="status-pill status-draft">📝 Draft</span>',
+            submitted: '<span class="status-pill status-submitted">⏳ Submitted</span>',
+            approved: '<span class="status-pill status-approved">✅ Approved</span>',
+            revision_requested: '<span class="status-pill status-revision">🔄 Revision</span>',
+        };
+        const statusPill = statusPillMap[dayStatus] || '';
+
         html += `
           <div class="day-card" data-date="${day.date}">
             <div class="day-header" onclick="toggleDayCard(this)">
-              <span class="day-date">${dateDisplay} <small>${periodCount}/${total} periods filled</small></span>
+              <div class="day-header-left">
+                <div class="day-date">${dateDisplay}</div>
+                <div class="day-badge" style="background-color: ${progressColor}15; color: ${progressColor}; border: 1px solid ${progressColor}30;">
+                   ${periodCount}/${total} periods
+                </div>
+                ${statusPill}
+              </div>
               <div class="day-actions">
-                <button class="btn btn-outline btn-xs" onclick="editDay('${day.date}')">✏️ Edit</button>
-                <button class="btn btn-danger btn-xs" onclick="deleteDay('${day.date}')">🗑</button>
+                <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); openHistoryModal('${day.date}')">🕐 History</button>
+                <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); toggleDayCard(this.closest('.day-card'))">👁️ View</button>
+                <button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); editDay('${day.date}')">✏️ Edit</button>
+                <button class="btn btn-outline btn-xs btn-outline-danger" onclick="event.stopPropagation(); deleteDay('${day.date}')">🗑</button>
               </div>
             </div>
             <div class="period-list">
               ${day.periods.map(p => `
                 <div class="period-item">
-                  <span class="p-label">P${p.periodNumber}</span>
-                  <span class="p-class" title="Class & Section">${escHtml(p.classSection) || '—'}</span>
+                  <span class="p-label"><span class="p-num">P${p.periodNumber}</span></span>
+                  <span class="p-class" title="Class & Section"><span class="${p.classSection ? 'badge-class' : ''}">${escHtml(p.classSection) || '—'}</span></span>
                   <span class="p-work" title="Classwork">📖 ${escHtml(p.classwork) || '—'}</span>
                   <span class="p-home" title="Homework">📝 ${escHtml(p.homework) || '—'}</span>
-                  <span class="p-photo" title="Photo">
-                    ${p.photoUrl ? `<img src="${p.photoUrl}" class="view-photo-thumb" onclick="openLightbox('${p.photoUrl}')" alt="Activity Photo" />` : '—'}
+                  <span class="p-files" title="Files" style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
+                    ${(p.files && p.files.length > 0) ? p.files.map(f => `<a href="${f.url}" target="_blank" title="${escHtml(f.name)}" class="file-pill"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg> <span>${escHtml(f.name)}</span></a>`).join('') : (p.photoUrl ? `<a href="${p.photoUrl}" target="_blank" title="Photo" class="file-pill"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> <span>Photo</span></a>` : '<span style="color:var(--text-muted)">—</span>')}
                   </span>
                 </div>
               `).join('')}
@@ -411,6 +657,7 @@ function toggleDayCard(el) {
     const card = el.closest('.day-card');
     if (card) card.classList.toggle('expanded');
 }
+
 
 function editDay(dateStr) {
     document.querySelector('[data-tab="daily"]').click();
@@ -435,9 +682,6 @@ function deleteDay(dateStr) {
 async function loadSettingsUI() {
     const settings = getSettings();
     document.getElementById('settingsPeriods').value = settings.periodsPerDay || 8;
-    document.getElementById('settingsSupabaseUrl').value = settings.supabaseUrl || '';
-    document.getElementById('settingsSupabaseKey').value = settings.supabaseKey || '';
-    document.getElementById('settingsSupabaseTable').value = settings.supabaseTable || 'daily_activities';
     
     const subjectSelect = document.getElementById('settingsTeacherSubject');
     const boardSelect = document.getElementById('settingsCurriculumBoard');
@@ -576,128 +820,6 @@ async function saveSubjectSetting() {
     showToast(newSubject ? `✅ Subject configured to ${newSubject}` : '✅ Subject filtering disabled.', 'success');
 }
 
-function saveSupabaseSettings(quiet = false) {
-    const settings = getSettings();
-    const urlVal = document.getElementById('settingsSupabaseUrl').value.trim();
-    const keyVal = document.getElementById('settingsSupabaseKey').value.trim();
-    const tableVal = document.getElementById('settingsSupabaseTable').value.trim() || 'daily_activities';
-
-    if (settings.supabaseUrl !== urlVal || settings.supabaseKey !== keyVal || settings.supabaseTable !== tableVal) {
-        settings.supabaseUrl = urlVal;
-        settings.supabaseKey = keyVal;
-        settings.supabaseTable = tableVal;
-        saveSettings(settings);
-        supabaseClient = null;
-        if (!quiet) {
-            showToast('✅ Supabase settings saved.', 'success');
-            document.getElementById('supabaseStatus').textContent = 'Settings saved.';
-        }
-        setupAuthListener();
-    }
-}
-
-function validateSupabaseCredentials() {
-    const url = document.getElementById('settingsSupabaseUrl').value.trim();
-    const key = document.getElementById('settingsSupabaseKey').value.trim();
-    if (!url || !key) {
-        showToast('❌ Supabase credentials required! Please enter both Supabase URL and API Key.', 'error');
-        document.getElementById('supabaseStatus').textContent = '❌ Credentials missing.';
-        return false;
-    }
-    return true;
-}
-
-async function testSupabase() {
-    if (!validateSupabaseCredentials()) return;
-
-    const btn = document.getElementById('settingsSupabaseTest');
-    const statusEl = document.getElementById('supabaseStatus');
-    const originalContent = btn.innerHTML;
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Testing...';
-    statusEl.textContent = '⏳ Testing connection...';
-
-    saveSupabaseSettings(true);
-    const result = await testSupabaseConnection();
-
-    btn.disabled = false;
-    btn.innerHTML = originalContent;
-
-    if (result.ok) {
-        statusEl.textContent = '✅ Connected!';
-        showToast('✅ Supabase connection successful!', 'success');
-    } else {
-        statusEl.textContent = '❌ Connection failed.';
-        showToast('❌ Connection failed: ' + result.error, 'error');
-    }
-}
-
-async function doPushSupabase() {
-    if (!validateSupabaseCredentials()) return;
-
-    const btn = document.getElementById('settingsSupabasePush');
-    const statusEl = document.getElementById('supabaseStatus');
-    const originalContent = btn.innerHTML;
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Pushing...';
-    statusEl.textContent = '⏳ Pushing to Supabase...';
-
-    saveSupabaseSettings(true);
-    const result = await pushToSupabase();
-
-    btn.disabled = false;
-    btn.innerHTML = originalContent;
-
-    if (result.ok) {
-        statusEl.textContent = '✅ ' + (result.message || 'Push complete.');
-        showToast('✅ ' + (result.message || 'Push to Supabase complete!'), 'success');
-    } else {
-        statusEl.textContent = '❌ Push failed.';
-        showToast('❌ Push failed: ' + result.error, 'error');
-    }
-}
-
-async function doPullSupabase() {
-    if (!validateSupabaseCredentials()) return;
-
-    const btn = document.getElementById('settingsSupabasePull');
-    const statusEl = document.getElementById('supabaseStatus');
-    const originalContent = btn.innerHTML;
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Pulling...';
-    statusEl.textContent = '⏳ Pulling from Supabase...';
-
-    saveSupabaseSettings(true);
-    const result = await pullFromSupabase();
-
-    btn.disabled = false;
-    btn.innerHTML = originalContent;
-
-    if (result.ok) {
-        if (result.data) {
-            const existing = getActivities();
-            const merged = [...existing];
-            for (const act of result.data) {
-                const idx = merged.findIndex(a => a.date === act.date);
-                if (idx >= 0) merged[idx] = act;
-                else merged.push(act);
-            }
-            saveActivities(merged);
-            updateBadge();
-            if (document.getElementById('tab-view').classList.contains('active')) renderViewTab();
-            if (document.getElementById('tab-daily').classList.contains('active')) renderDailyTab();
-        }
-        statusEl.textContent = '✅ ' + (result.message || 'Pull complete.');
-        showToast('✅ ' + (result.message || 'Pull from Supabase complete!'), 'success');
-    } else {
-        statusEl.textContent = '❌ Pull failed.';
-        showToast('❌ Pull failed: ' + result.error, 'error');
-    }
-}
-
 function clearAllData() {
     if (!confirm('⚠️ Are you sure you want to delete ALL local activities? This cannot be undone!')) return;
     if (!confirm('⚠️ Final confirmation: delete all data?')) return;
@@ -712,7 +834,11 @@ function clearAllData() {
 //  UI: BADGE
 // ================================================================
 function updateBadge() {
-    const activities = getActivities();
+    let activities = getActivities();
+    const currentEmail = localStorage.getItem('lastLoggedInEmail');
+    if (currentEmail) {
+        activities = activities.filter(a => a.teacher_email === currentEmail);
+    }
     const total = activities.reduce((sum, d) => sum + d.periods.filter(p => p.classSection || p.subjectTopics || p.classwork || p.homework || p.photoUrl)
         .length, 0);
     document.getElementById('viewBadge').textContent = total;
@@ -731,7 +857,9 @@ function openLightbox(url) {
 
 function closeLightbox() {
     const lightbox = document.getElementById('lightbox');
-    lightbox.classList.remove('active');
+    if (lightbox) {
+        lightbox.classList.remove('active');
+    }
     document.body.style.overflow = '';
 }
 
@@ -833,52 +961,25 @@ function hideFetchConfigModal() {
     }
 }
 
-async function handleFetchConfigSubmit() {
-    const uuid = document.getElementById('fetchConfigUuid').value.trim();
-    const pin = document.getElementById('fetchConfigPin').value.trim();
-    const btn = document.getElementById('submitFetchConfigBtn');
-    const cancelBtn = document.getElementById('cancelFetchConfigBtn');
-    const fetchTriggerBtn = document.getElementById('settingsSupabaseFetchConfig');
-    
-    // Validate pin is present
-    if (!pin) {
-        showToast('❌ PIN is required.', 'error');
-        return;
-    }
-    
-    // UI Loading state
-    const originalBtnText = btn.textContent;
-    btn.disabled = true;
-    cancelBtn.disabled = true;
-    if (fetchTriggerBtn) fetchTriggerBtn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Fetching...';
-    
-    try {
-        const config = await window.apiFetchSupabaseConfig(uuid, pin);
-        
-        // Populate inputs
-        document.getElementById('settingsSupabaseUrl').value = config.supabaseUrl;
-        document.getElementById('settingsSupabaseKey').value = config.supabaseAnonKey;
-        if (config.tableName) {
-            document.getElementById('settingsSupabaseTable').value = config.tableName;
-        }
-        
-        // Auto-save settings
-        saveSupabaseSettings();
-        
-        showToast('✅ Supabase configuration updated successfully!', 'success');
-        hideFetchConfigModal();
-    } catch (error) {
-        showToast('❌ Failed to fetch config: ' + error.message, 'error');
-    } finally {
-        btn.disabled = false;
-        cancelBtn.disabled = false;
-        if (fetchTriggerBtn) fetchTriggerBtn.disabled = false;
-        btn.textContent = originalBtnText;
-    }
-}
-
 window.showFetchConfigModal = showFetchConfigModal;
 window.hideFetchConfigModal = hideFetchConfigModal;
 window.handleFetchConfigSubmit = handleFetchConfigSubmit;
+
+
+// ================================================================
+//  ROLE BASED UI
+// ================================================================
+function applyRoleBasedUI(role) {
+    const adminTabBtn = document.querySelector('[data-tab="admin"]');
+    const principalTabBtn = document.querySelector('[data-tab="principal"]');
+    
+    if (adminTabBtn) {
+        adminTabBtn.style.display = (role === 'admin' || role === 'super_admin') ? 'inline-block' : 'none';
+    }
+    
+    if (principalTabBtn) {
+        principalTabBtn.style.display = (role === 'principal' || role === 'admin' || role === 'super_admin') ? 'inline-block' : 'none';
+    }
+}
+window.applyRoleBasedUI = applyRoleBasedUI;
 
