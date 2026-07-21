@@ -3,16 +3,16 @@
 // ================================================================
 
 function isSupabaseConfigValid() {
-    const settings = getSettings();
-    const url = settings.supabaseUrl || '';
-    const key = settings.supabaseKey || '';
-    return url.includes('.supabase.co') && key.startsWith('eyJ') && key.length > 100;
+    if (!window.ENV) return false;
+    const url = window.ENV.SUPABASE_URL || '';
+    const key = window.ENV.SUPABASE_KEY || '';
+    return url.includes('.supabase.co') && (key.length > 30);
 }
 
 // ================================================================
 //  AUTH UI LOGIC
 // ================================================================
-let isBypassedAuth = false;
+let isBypassedAuth = localStorage.getItem('offlineMode') === 'true';
 let currentAuthTab = 'login';
 let authListenerBound = false;
 let currentBoundClientConfig = '';
@@ -151,22 +151,18 @@ async function handleGoogleSignIn(event) {
 async function handleSignOut() {
     const client = getSupabaseClient();
     if (client) {
-        try {
-            await client.auth.signOut();
-        } catch (e) {
-            console.warn('Supabase sign out failed:', e.message);
-        }
+        await client.auth.signOut();
     }
-    
-    handleAuthState(null);
-    showToast('Successfully signed out.', 'info');
+    localStorage.removeItem('offlineMode');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('lastLoggedInEmail');
+    window.location.href = 'index.html';
 }
 
 function bypassAuthToLocal() {
+    localStorage.setItem('offlineMode', 'true');
     isBypassedAuth = true;
-    const overlay = document.getElementById('auth-overlay');
-    if (overlay) overlay.classList.remove('active');
-    showToast('Using planner in Local Offline Mode. Data will not sync to Supabase.', 'info');
+    window.location.href = 'dashboard.html';
 }
 
 async function setupAuthListener() {
@@ -196,7 +192,7 @@ async function setupAuthListener() {
     }
     
     const overlay = document.getElementById('auth-overlay');
-    if (overlay) overlay.classList.add('active');
+    // We do NOT auto-show the auth overlay now, so the user can see the landing page.
     const lastEmail = localStorage.getItem('lastLoggedInEmail');
     const emailInput = document.getElementById('auth-email');
     if (lastEmail && emailInput && !emailInput.value) {
@@ -204,28 +200,101 @@ async function setupAuthListener() {
     }
 }
 
-function handleAuthState(session) {
+async function upsertUserProfileAndFetchRole(session) {
+    const client = getSupabaseClient();
+    if (!client) return { role: 'teacher', school_name: '' };
+    
+    const meta = session.user.user_metadata || {};
+    const email = session.user.email;
+    const name = meta.full_name || '';
+    const avatarUrl = meta.avatar_url || meta.picture || '';
+
+    try {
+        // 1. Fetch existing profile to check role
+        const { data: profile, error: fetchErr } = await client
+            .from('users')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle();
+            
+        if (fetchErr) {
+            console.warn('GET /users error (ignoring and proceeding with upsert):', fetchErr);
+        }
+            
+        if (!profile) {
+            // 2. If it doesn't exist (or fetch failed), upsert the initial profile
+            await client.from('users').upsert({
+                id: session.user.id,
+                email: email,
+                name: name,
+                avatar_url: avatarUrl,
+                role: 'teacher' // default role
+            }, { onConflict: 'id' });
+            return { role: 'teacher' };
+        } else {
+            // Update name, avatar
+            await client.from('users').upsert({
+                id: session.user.id,
+                email: email,
+                name: name,
+                avatar_url: avatarUrl,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+            
+            return {
+                role: profile.role || 'teacher'
+            };
+        }
+    } catch (err) {
+        console.warn('Error upserting user profile:', err);
+        return { role: 'teacher' };
+    }
+}
+
+async function handleAuthState(session) {
     const overlay = document.getElementById('auth-overlay');
     const userBanner = document.getElementById('headerUserBanner');
     const userEmail = document.getElementById('headerUserEmail');
+    const userName = document.getElementById('headerUserName');
+    const userRole = document.getElementById('headerUserRole');
+    const userSchool = document.getElementById('headerUserSchool');
+
+    const isLandingPage = window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/') || window.location.pathname === '';
+    const isDashboard = window.location.pathname.endsWith('dashboard.html');
 
     if (session && session.user) {
-        overlay.classList.remove('active');
-        userBanner.classList.remove('hidden');
+        localStorage.removeItem('offlineMode');
+        isBypassedAuth = false;
+        
+        if (isLandingPage) {
+            window.location.href = 'dashboard.html';
+            return;
+        }
+        if (overlay) overlay.classList.remove('active');
+        if (userBanner) userBanner.classList.remove('hidden');
         
         const meta = session.user.user_metadata || {};
         let displayName = meta.full_name || session.user.email;
-        if (meta.full_name && meta.subject) {
-            displayName += ` (${meta.subject})`;
+        if (userName) userName.textContent = displayName;
+        if (userEmail) userEmail.textContent = session.user.email;
+        
+        // Fetch role from DB
+        const profileInfo = await upsertUserProfileAndFetchRole(session);
+        window.currentUserRole = profileInfo.role;
+        
+        if (userRole) {
+            const roleFormatted = window.currentUserRole.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+            userRole.textContent = roleFormatted;
+        }
+        if (userSchool) {
+            userSchool.style.display = 'none';
         }
         
         if (meta.subject) {
             localStorage.setItem('userSubject', meta.subject);
         } else {
             const localSubj = localStorage.getItem('userSubject');
-            if (!localSubj) {
-                localStorage.removeItem('userSubject');
-            }
+            if (!localSubj) localStorage.removeItem('userSubject');
         }
         
         // Render Google Profile Avatar if available
@@ -241,8 +310,6 @@ function handleAuthState(session) {
             }
         }
         
-        userEmail.textContent = displayName;
-        userEmail.title = session.user.email;
         if (session.user.email) {
             localStorage.setItem('lastLoggedInEmail', session.user.email);
         }
@@ -252,15 +319,28 @@ function handleAuthState(session) {
             history.replaceState(null, document.title, window.location.pathname + window.location.search);
         }
 
+        // Apply Role-based routing (hide/show tabs)
+        applyRoleBasedUI(window.currentUserRole);
+        
+        // Initialize Notifications
+        if (window.subscribeToNotifications) {
+            window.subscribeToNotifications();
+        }
+
         // Auto-select 'daily' dashboard tab when signed in
         const dailyTabButton = document.querySelector('[data-tab="daily"]');
         if (dailyTabButton && !dailyTabButton.classList.contains('active')) {
             dailyTabButton.click();
         }
     } else {
+        if (isDashboard && !isBypassedAuth) {
+            window.location.href = 'index.html';
+            return;
+        }
+
         localStorage.removeItem('userSubject');
-        userBanner.classList.add('hidden');
-        userEmail.textContent = '';
+        if (userBanner) userBanner.classList.add('hidden');
+        if (userEmail) userEmail.textContent = '';
         
         const avatarEl = document.getElementById('headerUserAvatar');
         if (avatarEl) {
@@ -270,15 +350,21 @@ function handleAuthState(session) {
         
         const settings = getSettings();
         if (settings.supabaseUrl && settings.supabaseKey && !isBypassedAuth) {
-            overlay.classList.add('active');
-            
+            // Do not automatically show auth overlay, let the landing page button do it
             const lastEmail = localStorage.getItem('lastLoggedInEmail');
             const emailInput = document.getElementById('auth-email');
             if (lastEmail && emailInput && !emailInput.value) {
                 emailInput.value = lastEmail;
             }
         } else {
-            overlay.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
         }
     }
 }
+
+// Ensure globally accessible
+window.handleGoogleSignIn = handleGoogleSignIn;
+window.handleSignOut = handleSignOut;
+window.switchAuthTab = switchAuthTab;
+window.handleAuthSubmit = handleAuthSubmit;
+window.bypassAuthToLocal = bypassAuthToLocal;
