@@ -28,7 +28,7 @@ function startIntroTour() {
             {
                 element: '.tab-nav',
                 title: "Navigation Tabs",
-                intro: "Switch between <strong>Daily Entry</strong> (for today's entry), <strong>View Activities</strong> (to search past history), and <strong>Settings</strong> (for configuration).",
+                intro: "Switch between <strong>Daily Entry</strong>, <strong>View Activities</strong>, <strong>Notifications</strong>, and <strong>Settings</strong>.",
                 position: 'bottom'
             },
             {
@@ -38,13 +38,19 @@ function startIntroTour() {
                 position: 'bottom'
             },
             {
-                element: '.period-table-wrap',
-                title: "Daily Activities Grid",
+                element: '#copyPrevBtn',
+                title: "Copy Previous Day",
+                intro: "Save time by duplicating your entries from yesterday.",
+                position: 'bottom'
+            },
+            {
+                element: '#periodCards',
+                title: "Daily Activities Cards",
                 intro: "Enter details for each period. Select a class (e.g. 10) to load that class's custom curriculum topics.",
                 position: 'top'
             },
             {
-                element: '#tourClassworkWrap',
+                element: '.daily-work',
                 title: "✨ Auto-Complete Shortcuts",
                 intro: "Type <strong>#</strong> in the Classwork or Homework box to search and insert chapter topics instantly. No typing required!",
                 position: 'bottom'
@@ -56,9 +62,27 @@ function startIntroTour() {
                 position: 'top'
             },
             {
+                element: '#submitForApprovalBtn',
+                title: "Submit for Approval",
+                intro: "Once your diary is complete, submit it to the principal for review and approval.",
+                position: 'top'
+            },
+            {
                 element: '#curriculum-status-banner',
                 title: "Curriculum Status Banner",
                 intro: "Displays whether the static curriculum topics are loaded and saved locally for your active class and subject.",
+                position: 'bottom'
+            },
+            {
+                element: '#notificationsTabBtn',
+                title: "Notifications",
+                intro: "Check here for alerts about diary approvals, rejection notes from the principal, and system updates.",
+                position: 'bottom'
+            },
+            {
+                element: 'button[data-tab="principal"]',
+                title: "Principal Dashboard",
+                intro: "If you are a Principal, use this tab to review and approve teacher diaries, view KPIs, and track analytics.",
                 position: 'bottom'
             },
             {
