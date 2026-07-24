@@ -2246,12 +2246,31 @@ body.dark .feature-card p {
 /* Disable tab animations and stacking contexts during active tour to allow proper Intro.js highlighting */
 body.tour-active .tab-content,
 body.tour-active .card,
-body.tour-active .period-table-wrap {
+body.tour-active .period-table-wrap,
+body.tour-active .app-header,
+body.tour-active .tab-nav,
+body.tour-active .sticky-save {
     animation: none !important;
     backdrop-filter: none !important;
     filter: none !important;
     transform: none !important;
     overflow: visible !important;
+    will-change: auto !important;
+    contain: none !important;
+    perspective: none !important;
+}
+/* Ensure intro.js layers sit above everything */
+body.tour-active .introjs-overlay {
+    z-index: 99999 !important;
+}
+body.tour-active .introjs-helperLayer {
+    z-index: 100000 !important;
+}
+body.tour-active .introjs-tooltipReferenceLayer {
+    z-index: 100001 !important;
+}
+body.tour-active .introjs-fixedTooltip {
+    z-index: 100001 !important;
 }
 
 /* ---------- PHASE 2: FILE UPLOADS ---------- */
