@@ -435,9 +435,6 @@ function deleteDay(dateStr) {
 async function loadSettingsUI() {
     const settings = getSettings();
     document.getElementById('settingsPeriods').value = settings.periodsPerDay || 8;
-    document.getElementById('settingsSupabaseUrl').value = settings.supabaseUrl || '';
-    document.getElementById('settingsSupabaseKey').value = settings.supabaseKey || '';
-    document.getElementById('settingsSupabaseTable').value = settings.supabaseTable || 'daily_activities';
     
     const subjectSelect = document.getElementById('settingsTeacherSubject');
     const boardSelect = document.getElementById('settingsCurriculumBoard');
@@ -576,32 +573,12 @@ async function saveSubjectSetting() {
     showToast(newSubject ? `✅ Subject configured to ${newSubject}` : '✅ Subject filtering disabled.', 'success');
 }
 
-function saveSupabaseSettings(quiet = false) {
-    const settings = getSettings();
-    const urlVal = document.getElementById('settingsSupabaseUrl').value.trim();
-    const keyVal = document.getElementById('settingsSupabaseKey').value.trim();
-    const tableVal = document.getElementById('settingsSupabaseTable').value.trim() || 'daily_activities';
 
-    if (settings.supabaseUrl !== urlVal || settings.supabaseKey !== keyVal || settings.supabaseTable !== tableVal) {
-        settings.supabaseUrl = urlVal;
-        settings.supabaseKey = keyVal;
-        settings.supabaseTable = tableVal;
-        saveSettings(settings);
-        supabaseClient = null;
-        if (!quiet) {
-            showToast('✅ Supabase settings saved.', 'success');
-            document.getElementById('supabaseStatus').textContent = 'Settings saved.';
-        }
-        setupAuthListener();
-    }
-}
 
 function validateSupabaseCredentials() {
-    const url = document.getElementById('settingsSupabaseUrl').value.trim();
-    const key = document.getElementById('settingsSupabaseKey').value.trim();
-    if (!url || !key) {
-        showToast('❌ Supabase credentials required! Please enter both Supabase URL and API Key.', 'error');
-        document.getElementById('supabaseStatus').textContent = '❌ Credentials missing.';
+    if (!isSupabaseConfigValid()) {
+        showToast('❌ No School Code loaded! Please refresh and enter your School Code.', 'error');
+        document.getElementById('supabaseStatus').textContent = '❌ School Config missing.';
         return false;
     }
     return true;
@@ -617,8 +594,6 @@ async function testSupabase() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Testing...';
     statusEl.textContent = '⏳ Testing connection...';
-
-    saveSupabaseSettings(true);
     const result = await testSupabaseConnection();
 
     btn.disabled = false;
@@ -643,8 +618,6 @@ async function doPushSupabase() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Pushing...';
     statusEl.textContent = '⏳ Pushing to Supabase...';
-
-    saveSupabaseSettings(true);
     const result = await pushToSupabase();
 
     btn.disabled = false;
@@ -669,8 +642,6 @@ async function doPullSupabase() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Pulling...';
     statusEl.textContent = '⏳ Pulling from Supabase...';
-
-    saveSupabaseSettings(true);
     const result = await pullFromSupabase();
 
     btn.disabled = false;

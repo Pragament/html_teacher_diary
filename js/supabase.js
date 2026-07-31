@@ -1,31 +1,8 @@
 // ================================================================
 //  SUPABASE SERVICE
 // ================================================================
-let supabaseClient = null;
-let supabaseClientConfig = '';
-
 function getSupabaseClient() {
-    const settings = getSettings();
-    if (!settings.supabaseUrl || !settings.supabaseKey) return null;
-    let url = settings.supabaseUrl.trim();
-    if (url.endsWith('/')) url = url.slice(0, -1);
-    if (url.endsWith('/rest/v1')) url = url.slice(0, -8);
-    if (url.endsWith('/')) url = url.slice(0, -1);
-
-    const configKey = url + '|' + settings.supabaseKey;
-    if (supabaseClient && supabaseClientConfig !== configKey) {
-        supabaseClient = null;
-    }
-
-    if (!supabaseClient) {
-        try {
-            supabaseClient = window.supabase.createClient(url, settings.supabaseKey);
-            supabaseClientConfig = configKey;
-        } catch {
-            return null;
-        }
-    }
-    return supabaseClient;
+    return window.supabaseClient || null;
 }
 
 async function testSupabaseConnection() {

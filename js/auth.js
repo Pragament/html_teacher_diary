@@ -3,10 +3,7 @@
 // ================================================================
 
 function isSupabaseConfigValid() {
-    const settings = getSettings();
-    const url = settings.supabaseUrl || '';
-    const key = settings.supabaseKey || '';
-    return url.includes('.supabase.co') && key.startsWith('eyJ') && key.length > 100;
+    return !!window.supabaseClient;
 }
 
 // ================================================================
@@ -15,7 +12,6 @@ function isSupabaseConfigValid() {
 let isBypassedAuth = false;
 let currentAuthTab = 'login';
 let authListenerBound = false;
-let currentBoundClientConfig = '';
 
 function switchAuthTab(tab) {
     currentAuthTab = tab;
@@ -182,14 +178,11 @@ async function setupAuthListener() {
                 console.warn('Error fetching initial session:', e);
             }
 
-            const settings = getSettings();
-            const configKey = (settings.supabaseUrl || '') + '|' + (settings.supabaseKey || '');
-            if (!authListenerBound || currentBoundClientConfig !== configKey) {
+            if (!authListenerBound) {
                 client.auth.onAuthStateChange((event, session) => {
                     handleAuthState(session);
                 });
                 authListenerBound = true;
-                currentBoundClientConfig = configKey;
             }
             return;
         }
@@ -268,8 +261,7 @@ function handleAuthState(session) {
             avatarEl.style.display = 'none';
         }
         
-        const settings = getSettings();
-        if (settings.supabaseUrl && settings.supabaseKey && !isBypassedAuth) {
+        if (isSupabaseConfigValid() && !isBypassedAuth) {
             overlay.classList.add('active');
             
             const lastEmail = localStorage.getItem('lastLoggedInEmail');

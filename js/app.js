@@ -70,18 +70,7 @@ function init() {
     document.getElementById('settingsSupabasePush').addEventListener('click', doPushSupabase);
     document.getElementById('settingsSupabasePull').addEventListener('click', doPullSupabase);
 
-    const fetchConfigBtn = document.getElementById('settingsSupabaseFetchConfig');
-    if (fetchConfigBtn) {
-        fetchConfigBtn.addEventListener('click', showFetchConfigModal);
-    }
-    const cancelFetchConfigBtn = document.getElementById('cancelFetchConfigBtn');
-    if (cancelFetchConfigBtn) {
-        cancelFetchConfigBtn.addEventListener('click', hideFetchConfigModal);
-    }
-    const submitFetchConfigBtn = document.getElementById('submitFetchConfigBtn');
-    if (submitFetchConfigBtn) {
-        submitFetchConfigBtn.addEventListener('click', handleFetchConfigSubmit);
-    }
+
 
     document.getElementById('settingsExportCSV').addEventListener('click', exportCSV);
     document.getElementById('settingsImportCSV').addEventListener('click', () => document.getElementById('csvFileInput').click());
@@ -93,10 +82,7 @@ function init() {
     });
     document.getElementById('settingsClearAll').addEventListener('click', clearAllData);
 
-    // save supabase settings when fields change (blur)
-    ['settingsSupabaseUrl', 'settingsSupabaseKey', 'settingsSupabaseTable'].forEach(id => {
-        document.getElementById(id).addEventListener('blur', saveSupabaseSettings);
-    });
+
 
     // setup authentication checking & listeners
     setupAuthListener();
@@ -128,8 +114,7 @@ function init() {
     });
 }
 
-// run
-document.addEventListener('DOMContentLoaded', init);
+window.initApp = init;
 
 // expose some functions globally for inline onclick
 window.toggleDayCard = toggleDayCard;
@@ -148,6 +133,4 @@ window.saveSubjectSetting = saveSubjectSetting;
 window.saveCurriculumConfigSetting = saveCurriculumConfigSetting;
 window.loadCurriculumCSV = loadCurriculumCSV;
 window.seedDatabaseCurriculum = seedDatabaseCurriculum;
-window.showFetchConfigModal = showFetchConfigModal;
-window.hideFetchConfigModal = hideFetchConfigModal;
-window.handleFetchConfigSubmit = handleFetchConfigSubmit;
+
