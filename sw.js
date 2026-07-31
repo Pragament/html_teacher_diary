@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teacher-diary-v7';
+const CACHE_NAME = 'teacher-diary-v15';
 const ASSETS = [
     './',
     './index.html',

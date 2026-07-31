@@ -84,7 +84,7 @@ async function fetchDayStatus(dateStr) {
 
         const { data: entries } = await client
             .from('daily_entries')
-            .select('id, status, revision_number, submitted_at, approved_at, revision_note')
+            .select('id, period_number, status, revision_number, submitted_at, approved_at, revision_note')
             .eq('teacher_id', session.user.id)
             .eq('date', dateStr)
             .order('revision_number', { ascending: false });
@@ -100,8 +100,8 @@ async function fetchDayStatus(dateStr) {
         }
         const latest = Object.values(latestByPeriod);
 
-        // The overall day status is the "worst" status (draft < revision_requested < submitted < approved)
-        const statusPriority = { draft: 0, revision_requested: 1, submitted: 2, approved: 3 };
+        // The overall day status is the "worst" status (revision_requested < draft < submitted < approved)
+        const statusPriority = { revision_requested: 0, draft: 1, submitted: 2, approved: 3 };
         latest.sort((a, b) => statusPriority[a.status] - statusPriority[b.status]);
 
         const dominantEntry = latest[0]; // lowest priority = most-needs-action status
