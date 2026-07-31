@@ -1,6 +1,20 @@
 // ================================================================
 //  UI: DAILY TAB
 // ================================================================
+window.currentViewMode = localStorage.getItem('dailyViewMode') || (window.innerWidth < 640 ? 'focus' : window.innerWidth < 1024 ? 'compact' : 'cards');
+window.currentFocusedPeriod = 1;
+window.unsavedPeriods = new Set();
+
+function toggleCard(headerEl, i) {
+    if (window.currentViewMode === 'cards') {
+        const card = headerEl.closest('.period-card');
+        if (card) card.classList.toggle('collapsed');
+    } else {
+        setFocusPeriod(i);
+    }
+}
+
+
 function parseClassSection(val) {
     if (!val) return { class: '', section: '' };
     const parts = val.split('-');
@@ -97,7 +111,7 @@ async function renderDailyTab() {
         }
         
         const card = document.createElement('div');
-        card.className = 'period-card';
+        card.className = 'period-card' + (i === window.currentFocusedPeriod ? ' active focused' : '');
         
         const filesHtml = `
             <div class="file-attach-zone" id="file-zone-${i}">
@@ -113,20 +127,25 @@ async function renderDailyTab() {
         ].join('');
 
         card.innerHTML = `
-          <div class="period-card-header">
-            <span class="period-badge">Period ${i}</span>
-            <div class="period-meta" style="display:flex; gap:8px; align-items:center;">
+          <div class="period-card-header" onclick="toggleCard(this, ${i})" style="cursor:pointer;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="period-badge">Period ${i} <span style="opacity:0.8; font-size:11px; margin-left:4px;">(${i}/${periodsPerDay})</span></span>
+                <span class="compact-chevron" style="font-size:12px; color:var(--text-muted);">&#9660;</span>
+            </div>
+            <div class="period-meta" style="display:flex; gap:8px; align-items:center;" onclick="event.stopPropagation()">
                 <select class="daily-class-dropdown" data-period="${i}" style="width:80px; padding:2px; font-size:12px;">${classDropdownOptions}</select>
                 <input type="text" class="daily-section-input" data-period="${i}" value="${escHtml(parsed.section)}" placeholder="Sec" style="width:40px; padding:2px; font-size:12px;" />
                 <input type="text" class="daily-subject-input" data-period="${i}" value="${escHtml(subject)}" placeholder="Subject" style="width:80px; padding:2px; font-size:12px;" />
             </div>
           </div>
-          <label style="font-size:12px; margin-top:8px;">Classwork</label>
-          <textarea class="daily-work" data-period="${i}" rows="2" placeholder="What was taught?">${escHtml(classwork)}</textarea>
-          <label style="font-size:12px; margin-top:8px;">Homework</label>
-          <textarea class="daily-home" data-period="${i}" rows="2" placeholder="Homework assigned?">${escHtml(homework)}</textarea>
-          <div class="period-card-footer">
-            <div>${filesHtml}</div>
+          <div class="period-body">
+              <label style="font-size:12px; margin-top:8px; display:block;">Classwork</label>
+              <textarea class="daily-work" data-period="${i}" rows="2" placeholder="What was taught?">${escHtml(classwork)}</textarea>
+              <label style="font-size:12px; margin-top:8px; display:block;">Homework</label>
+              <textarea class="daily-home" data-period="${i}" rows="2" placeholder="Homework assigned?">${escHtml(homework)}</textarea>
+              <div class="period-card-footer">
+                <div>${filesHtml}</div>
+              </div>
           </div>
         `;
         container.appendChild(card);
@@ -138,8 +157,169 @@ async function renderDailyTab() {
             `📝 No entry yet for ${formatDate(dateStr)}`;
     }
 
+    // Setup view controls and classes
+    updateViewModeClasses();
+    renderDailyControls();
+    
+    // Attach listeners for live status updates
+    attachLiveStatusListeners();
+
     // Refresh approval status banner and button visibility
     updateApprovalBanner(dateStr);
+}
+
+// ================================================================
+//  VIEW MODES & STATUS BAR
+// ================================================================
+function switchViewMode(mode) {
+    window.currentViewMode = mode;
+    localStorage.setItem('dailyViewMode', mode);
+    updateViewModeClasses();
+    renderDailyControls();
+}
+
+function updateViewModeClasses() {
+    const container = document.getElementById('periodCards');
+    if (!container) return;
+    container.className = 'period-cards mt-12 view-' + window.currentViewMode;
+    
+    // In focus mode, ensure at least one card is focused
+    if (window.currentViewMode === 'focus') {
+        setFocusPeriod(window.currentFocusedPeriod);
+    }
+}
+
+function setFocusPeriod(num) {
+    const periodsPerDay = window.getSettings ? window.getSettings().periodsPerDay : 8;
+    if (num < 1) num = 1;
+    if (num > periodsPerDay) num = periodsPerDay;
+    window.currentFocusedPeriod = num;
+    
+    const cards = document.querySelectorAll('.period-card');
+    cards.forEach((card, idx) => {
+        if (idx + 1 === num) {
+            // If already active in compact mode, clicking header toggles it off
+            if (window.currentViewMode === 'compact' && card.classList.contains('active')) {
+                card.classList.remove('active', 'focused');
+            } else {
+                card.classList.add('active', 'focused');
+            }
+        } else {
+            card.classList.remove('active', 'focused');
+        }
+    });
+    
+    if (window.currentViewMode === 'focus') {
+        renderDailyControls(); // Re-render to update focus navigation disabled states
+    }
+
+    setTimeout(() => {
+        const activePill = document.querySelector('.status-pill.active');
+        if (activePill) activePill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }, 50);
+}
+
+function renderDailyControls() {
+    const controlsContainer = document.getElementById('dailyControls');
+    if (!controlsContainer) return;
+
+    // View Switcher HTML
+    const viewSwitcherHtml = `
+        <div class="view-mode-switcher">
+            <button class="view-btn ${window.currentViewMode === 'cards' ? 'active' : ''}" onclick="switchViewMode('cards')">📋 Cards</button>
+            <button class="view-btn ${window.currentViewMode === 'compact' ? 'active' : ''}" onclick="switchViewMode('compact')">📑 Compact</button>
+            <button class="view-btn ${window.currentViewMode === 'focus' ? 'active' : ''}" onclick="switchViewMode('focus')">📱 Focus</button>
+        </div>
+    `;
+
+    // Status / Navigation Bar HTML
+    const periodsPerDay = window.getSettings ? window.getSettings().periodsPerDay : 8;
+    
+    const statsHtml = `
+        <div class="completion-stats">
+            <div><span id="completedCount">0</span> / ${periodsPerDay} Completed</div>
+            <div class="stats-bar-container"><div id="completedBar" class="stats-bar-fill" style="width: 0%"></div></div>
+        </div>
+    `;
+
+    let statusPillsHtml = '<div class="period-status-bar">';
+    for (let i = 1; i <= periodsPerDay; i++) {
+        statusPillsHtml += `<button class="status-pill" id="status-pill-${i}" onclick="setFocusPeriod(${i})">
+            <span class="status-num">${i}</span><span class="status-icon">⚪</span>
+        </button>`;
+    }
+    statusPillsHtml += '</div>';
+
+    // Focus Navigation HTML (Only shows in focus mode)
+    let focusNavHtml = '';
+    if (window.currentViewMode === 'focus') {
+        const prevDisabled = window.currentFocusedPeriod <= 1 ? 'disabled' : '';
+        const nextDisabled = window.currentFocusedPeriod >= periodsPerDay ? 'disabled' : '';
+        focusNavHtml = `
+            <div class="focus-nav">
+                <button class="btn btn-outline" onclick="setFocusPeriod(${window.currentFocusedPeriod - 1})" ${prevDisabled}>← Prev</button>
+                <span class="focus-nav-title">Period ${window.currentFocusedPeriod}</span>
+                <button class="btn btn-outline" onclick="setFocusPeriod(${window.currentFocusedPeriod + 1})" ${nextDisabled}>Next →</button>
+            </div>
+        `;
+    }
+
+    controlsContainer.innerHTML = statsHtml + viewSwitcherHtml + statusPillsHtml + focusNavHtml;
+    updateStatusBar(); // Populate actual statuses based on DOM inputs
+}
+
+function updateStatusBar() {
+    const cards = document.querySelectorAll('.period-card');
+    let completed = 0;
+    
+    cards.forEach((card, idx) => {
+        const periodNum = idx + 1;
+        const workVal = card.querySelector('.daily-work')?.value?.trim() || '';
+        const homeVal = card.querySelector('.daily-home')?.value?.trim() || '';
+        
+        let icon = '⚪'; // Empty
+        let stateClass = 'status-empty';
+        
+        if (window.unsavedPeriods.has(periodNum)) {
+            icon = '✏️'; // Editing
+            stateClass = 'status-progress';
+        } else if (workVal && homeVal) {
+            icon = '🟢'; // Completed
+            stateClass = 'status-completed';
+            completed++;
+        } else if (workVal || homeVal) {
+            icon = '🟡'; // In Progress
+            stateClass = 'status-progress';
+        }
+
+        const pill = document.getElementById(`status-pill-${periodNum}`);
+        if (pill) {
+            const iconSpan = pill.querySelector('.status-icon');
+            if (iconSpan) iconSpan.textContent = icon;
+            pill.className = `status-pill ${stateClass} ${periodNum === window.currentFocusedPeriod ? 'active' : ''}`;
+        }
+    });
+
+    const countEl = document.getElementById('completedCount');
+    const barEl = document.getElementById('completedBar');
+    if (countEl) countEl.textContent = completed;
+    if (barEl) {
+        const total = window.getSettings ? window.getSettings().periodsPerDay : 8;
+        barEl.style.width = Math.round((completed / total) * 100) + '%';
+    }
+}
+
+function attachLiveStatusListeners() {
+    const inputs = document.querySelectorAll('.daily-work, .daily-home, .daily-class-dropdown, .daily-section-input, .daily-subject-input');
+    inputs.forEach(input => {
+        input.addEventListener('input', (e) => {
+            const periodNum = parseInt(e.target.dataset.period);
+            if (periodNum) {
+                window.unsavedPeriods.add(periodNum);
+                updateStatusBar();
+            }
+        });
+    });
 }
 
 // ================================================================
@@ -396,6 +576,7 @@ async function saveDaily() {
 
     const saveBtn = document.getElementById('saveDailyBtn');
     const stickySaveBtn = document.getElementById('stickySaveBtn');
+    const floatingStatus = document.getElementById('floatingSaveStatus');
     
     let originalBtnHtml = '';
     if (!window.isAutoSaving) {
@@ -408,6 +589,9 @@ async function saveDaily() {
             stickySaveBtn.disabled = true;
             stickySaveBtn.textContent = 'Saving...';
         }
+    } else if (floatingStatus) {
+        floatingStatus.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;"></span> ⟳ Saving...';
+        floatingStatus.classList.add('visible');
     }
 
     try {
@@ -443,19 +627,32 @@ async function saveDaily() {
             }
         }
 
+        const syncUI = () => {
+            periods.forEach(p => {
+                const state = window.periodFiles[p.periodNumber];
+                if (state) {
+                    state.existing = p.files || [];
+                    state.pending = p.pendingFiles || [];
+                    const zone = document.getElementById(`file-zone-${p.periodNumber}`);
+                    if (zone) zone.innerHTML = renderFileAttachZone(p.periodNumber);
+                }
+            });
+        };
+
         if (typeof saveEntryToSupabase === 'function') {
             const result = await saveEntryToSupabase(dateStr, periods);
             if (!result.ok && !window.isAutoSaving) {
                 showToast(`⚠️ Sync failed. Saved offline.`, 'warning');
+                syncUI();
             } else if (result.ok && !window.isAutoSaving) {
                 showToast(`✅ Saved activities for ${formatDate(dateStr)}`, 'success');
-                renderDailyTab();
+                syncUI();
             }
         } else {
             saveDayEntry(dateStr, periods);
             if (!window.isAutoSaving) {
                 showToast(`✅ Saved activities for ${formatDate(dateStr)}`, 'success');
-                renderDailyTab();
+                syncUI();
             }
         }
         
@@ -467,7 +664,13 @@ async function saveDaily() {
         if (!window.isAutoSaving) {
             if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalBtnHtml; }
             if (stickySaveBtn) { stickySaveBtn.disabled = false; stickySaveBtn.textContent = '✓ Save All'; }
+        } else if (floatingStatus) {
+            floatingStatus.innerHTML = '✓ Saved';
+            setTimeout(() => floatingStatus.classList.remove('visible'), 2000);
         }
+        
+        window.unsavedPeriods.clear();
+        updateStatusBar();
     }
 }
 
@@ -970,7 +1173,6 @@ function hideFetchConfigModal() {
 
 window.showFetchConfigModal = showFetchConfigModal;
 window.hideFetchConfigModal = hideFetchConfigModal;
-window.handleFetchConfigSubmit = handleFetchConfigSubmit;
 
 
 // ================================================================
@@ -989,4 +1191,29 @@ function applyRoleBasedUI(role) {
     }
 }
 window.applyRoleBasedUI = applyRoleBasedUI;
+window.switchViewMode = switchViewMode;
+window.setFocusPeriod = setFocusPeriod;
+
+// Keyboard & Swipe Gestures
+window.addEventListener('keydown', (e) => {
+    if (window.currentViewMode !== 'focus') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return; // Don't trigger when typing
+    if (e.ctrlKey && e.key === 'ArrowRight') setFocusPeriod(window.currentFocusedPeriod + 1);
+    if (e.ctrlKey && e.key === 'ArrowLeft') setFocusPeriod(window.currentFocusedPeriod - 1);
+});
+
+let touchStartX = 0;
+window.addEventListener('touchstart', e => {
+    if (e.target.closest('.period-cards')) {
+        touchStartX = e.changedTouches[0].screenX;
+    }
+});
+window.addEventListener('touchend', e => {
+    if (window.currentViewMode !== 'focus') return;
+    if (e.target.closest('.period-cards')) {
+        const touchEndX = e.changedTouches[0].screenX;
+        if (touchStartX - touchEndX > 70) setFocusPeriod(window.currentFocusedPeriod + 1); // Swipe left = Next
+        if (touchEndX - touchStartX > 70) setFocusPeriod(window.currentFocusedPeriod - 1); // Swipe right = Prev
+    }
+});
 

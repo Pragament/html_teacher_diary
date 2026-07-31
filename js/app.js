@@ -147,4 +147,3 @@ window.loadCurriculumCSV = loadCurriculumCSV;
 window.seedDatabaseCurriculum = seedDatabaseCurriculum;
 window.showFetchConfigModal = showFetchConfigModal;
 window.hideFetchConfigModal = hideFetchConfigModal;
-window.handleFetchConfigSubmit = handleFetchConfigSubmit;
