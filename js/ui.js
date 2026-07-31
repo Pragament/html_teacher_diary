@@ -970,7 +970,6 @@ function hideFetchConfigModal() {
 
 window.showFetchConfigModal = showFetchConfigModal;
 window.hideFetchConfigModal = hideFetchConfigModal;
-window.handleFetchConfigSubmit = handleFetchConfigSubmit;
 
 
 // ================================================================

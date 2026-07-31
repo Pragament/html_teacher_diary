@@ -23,6 +23,7 @@
     --shadow-sm: 0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04);
     --shadow-md: 0 4px 16px rgba(15,23,42,0.10), 0 2px 6px rgba(15,23,42,0.06);
     --shadow-lg: 0 16px 48px rgba(15,23,42,0.14), 0 4px 16px rgba(15,23,42,0.06);
+    color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,6 +34,7 @@
         --text-muted: #94a3b8;
         --border: #1f2d3d;
         --primary-light: #1e1b4b;
+        color-scheme: dark;
     }
 }
 
@@ -46,6 +48,7 @@ body.dark {
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
     --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
     --shadow-lg: 0 16px 48px rgba(0,0,0,0.6);
+    color-scheme: dark;
 }
 
 body {
@@ -315,10 +318,15 @@ textarea {
 label {
     font-weight: 600;
     font-size: 13px;
-    color: #1e293b;
+    color: var(--text-main);
     display: block;
     margin-bottom: 5px;
     letter-spacing: 0.01em;
+}
+
+::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
 }
 
 input[type="text"],
@@ -337,13 +345,18 @@ textarea {
     transition: border 0.2s, box-shadow 0.2s;
 }
 
+option {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+}
+
 input:focus,
 select:focus,
 textarea:focus {
     outline: none;
     border-color: #4f46e5;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-    background: #fff;
+    background: var(--bg-card);
 }
 
 textarea {
@@ -941,7 +954,7 @@ textarea {
 .period-card select:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-    background: #f8fafc;
+    background: var(--bg-body);
 }
 
 /* Status Pills */
@@ -1367,11 +1380,7 @@ textarea {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background: #f8fafc;
-}
-
-body.dark .landing-page {
-    background: #0f172a;
+    background: var(--bg-body);
 }
 
 /* Landing Navbar */
@@ -1380,13 +1389,8 @@ body.dark .landing-page {
     justify-content: space-between;
     align-items: center;
     padding: 20px 40px;
-    background: #ffffff;
+    background: var(--bg-card);
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-
-body.dark .landing-nav {
-    background: #1e293b;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .landing-logo {
@@ -1419,29 +1423,17 @@ body.dark .landing-nav {
 .landing-title {
     font-size: 52px;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-main);
     margin-bottom: 24px;
     letter-spacing: -1.5px;
     line-height: 1.15;
-    background: linear-gradient(135deg, #1e293b 0%, #4f46e5 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-body.dark .landing-title {
-    color: #f1f5f9;
 }
 
 .landing-subtitle {
     font-size: 20px;
-    color: #64748b;
+    color: var(--text-muted);
     margin-bottom: 40px;
     line-height: 1.6;
-}
-
-body.dark .landing-subtitle {
-    color: #94a3b8;
 }
 
 .landing-buttons {
@@ -1485,34 +1477,16 @@ body.dark .landing-subtitle {
     box-shadow: 0 16px 40px rgba(79,70,229,0.15);
 }
 
-body.dark .feature-card {
-    background: #1e293b;
-    border-color: #334155;
-}
-
-.feature-icon {
-    font-size: 40px;
-    margin-bottom: 20px;
-}
-
 .feature-card h3 {
     font-size: 20px;
-    color: #1e293b;
+    color: var(--text-main);
     margin-bottom: 12px;
     font-weight: 700;
 }
 
-body.dark .feature-card h3 {
-    color: #f1f5f9;
-}
-
 .feature-card p {
-    color: #64748b;
+    color: var(--text-muted);
     line-height: 1.6;
-}
-
-body.dark .feature-card p {
-    color: #94a3b8;
 }
 
 /* ---------- RESPONSIVE ---------- */
@@ -1985,21 +1959,20 @@ body.dark .feature-card p {
 .auth-form-group input {
     width: 100%;
     padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    background: #ffffff;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
-    color: #ffffff;
+    color: #0f172a;
     font-size: 15px;
     outline: none;
     transition: all 0.2s ease;
 }
 .auth-form-group input:focus {
-    background: rgba(255, 255, 255, 0.08);
     border-color: #818cf8;
-    box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.15);
+    box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.3);
 }
 .auth-form-group input::placeholder {
-    color: #475569;
+    color: #94a3b8;
 }
 .auth-btn-submit {
     width: 100%;
