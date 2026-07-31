@@ -12,6 +12,31 @@ window.App = {
         return;
     }
 
+    // Detect OAuth callback: Supabase returns access_token in URL hash
+    // In this case, let Supabase SDK handle token exchange - do NOT redirect away
+    const hash = window.location.hash || '';
+    const isOAuthCallback = hash.includes('access_token=') || hash.includes('error=');
+    if (isOAuthCallback) {
+        // We are on dashboard.html after Google OAuth redirect.
+        // Supabase SDK will auto-detect the token from the hash.
+        // We need a school context - try to restore it from localStorage,
+        // or if none is stored, we allow the session but won't have school info.
+        const schoolDataRaw = localStorage.getItem('teacherDiary.school');
+        if (schoolDataRaw) {
+            try {
+                const storedSchool = JSON.parse(schoolDataRaw);
+                if (storedSchool && storedSchool.schoolCode) {
+                    await verifyAndConnectSchool(storedSchool.schoolCode);
+                    return;
+                }
+            } catch (e) { /* ignore */ }
+        }
+        // No school stored but we have an OAuth callback: 
+        // dispatch appReady anyway so auth listener can handle the token
+        window.dispatchEvent(new CustomEvent('appReady', { detail: { mode: 'oauth-callback' } }));
+        return;
+    }
+
     const schoolDataRaw = localStorage.getItem('teacherDiary.school');
     let storedSchool = null;
     

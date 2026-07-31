@@ -130,10 +130,14 @@ async function handleGoogleSignIn(event) {
             return;
         }
         
+        // Build redirect URL: always land on dashboard.html after Google OAuth
+        const basePath = window.location.pathname.replace(/\/[^/]*$/, '/');
+        const redirectTo = window.location.origin + basePath + 'dashboard.html';
+
         const { error } = await client.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin + window.location.pathname,
+                redirectTo: redirectTo,
                 queryParams: {
                     prompt: 'select_account'
                 }
@@ -233,12 +237,13 @@ async function upsertUserProfileAndFetchRole(session) {
             }, { onConflict: 'id' });
             return { role: 'teacher' };
         } else {
-            // Update name, avatar
+            // Update name, avatar while preserving role
             await client.from('users').upsert({
                 id: session.user.id,
                 email: email,
                 name: name,
                 avatar_url: avatarUrl,
+                role: profile.role || 'teacher',
                 updated_at: new Date().toISOString()
             }, { onConflict: 'id' });
             
