@@ -1,106 +1,179 @@
-// ================================================================
-//  BOOTSTRAP & TENANT INITIALIZATION
-// ================================================================
-document.addEventListener('DOMContentLoaded', () => {
-    const code = localStorage.getItem("schoolCode");
-    if (code) {
-        loadSchoolConfig(code);
-    } else {
-        const overlay = document.getElementById('school-code-overlay');
-        if (overlay) overlay.classList.add('active');
+window.App = {
+    supabase: null,
+    school: null
+};
+
+(async function boot() {
+    const isOfflineMode = localStorage.getItem('offlineMode') === 'true';
+    if (isOfflineMode) {
+        // If offline mode is enabled, we skip the school connect flow
+        // and just dispatch appReady so the rest of the app can load
+        window.dispatchEvent(new CustomEvent('appReady', { detail: { mode: 'offline' } }));
+        return;
     }
-});
 
-async function loadSchoolConfig(code) {
+    const schoolDataRaw = localStorage.getItem('teacherDiary.school');
+    let storedSchool = null;
+    
+    if (schoolDataRaw) {
+        try {
+            storedSchool = JSON.parse(schoolDataRaw);
+        } catch (e) {
+            console.warn("Invalid school data in localStorage.");
+        }
+    }
+
+    if (storedSchool && storedSchool.schoolCode) {
+        // Verify with remote json
+        await verifyAndConnectSchool(storedSchool.schoolCode);
+    } else {
+        // Check if we are on dashboard without a school, if so, redirect to index
+        if (window.location.pathname.endsWith('dashboard.html')) {
+             window.location.href = 'index.html';
+             return;
+        }
+        // Dispatch appReady so the landing page can finish loading normally
+        window.dispatchEvent(new CustomEvent('appReady', { detail: null }));
+    }
+})();
+
+async function verifyAndConnectSchool(code) {
+    const overlay = document.getElementById('school-code-overlay');
+    const errorMsg = document.getElementById('school-code-error');
+    const submitBtn = document.getElementById('school-code-submit-btn');
+    
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Connecting...';
+    }
+    if (errorMsg) errorMsg.style.display = 'none';
+
     try {
-        const response = await fetch("config/schools.json");
-        const data = await response.json();
+        const response = await fetch('config/schools.v1.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Failed to fetch school configuration');
         
-        const school = data.schools.find(
-            s => s.code.toUpperCase() === code.toUpperCase()
-        );
+        const schools = await response.json();
+        const schoolConfig = schools[code];
 
-        if (!school) {
-            showSchoolCodeError("Invalid School Code");
-            localStorage.removeItem("schoolCode"); // clear if invalid
-            const overlay = document.getElementById('school-code-overlay');
+        if (!schoolConfig) {
+            if (errorMsg) {
+                errorMsg.innerHTML = "School not found.<br>Please verify the code provided by your school administrator.";
+                errorMsg.style.display = 'block';
+            }
             if (overlay) overlay.classList.add('active');
+            localStorage.removeItem('teacherDiary.school'); // clear invalid state
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Connect';
+            }
             return;
         }
 
-        // Store valid code
-        localStorage.setItem("schoolCode", school.code);
+        if (schoolConfig.status !== 'active') {
+            if (errorMsg) {
+                errorMsg.innerHTML = "This school is currently unavailable.<br>Contact your administrator.";
+                errorMsg.style.display = 'block';
+            }
+            if (overlay) overlay.classList.add('active');
+            localStorage.removeItem('teacherDiary.school'); // clear invalid state
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Connect';
+            }
+            return;
+        }
 
-        // Initialize Supabase Client dynamically
+        // Initialize Supabase
         if (window.supabase) {
-            window.supabaseClient = window.supabase.createClient(
-                school.url,
-                school.anonKey
-            );
-        } else {
-            console.warn("Supabase SDK not loaded yet.");
+            window.App.supabase = window.supabase.createClient(schoolConfig.supabaseUrl, schoolConfig.anonKey);
         }
 
-        // Hide overlay if active
-        const overlay = document.getElementById('school-code-overlay');
+        // Store active school state
+        window.App.school = {
+            schoolCode: code,
+            schoolName: schoolConfig.schoolName,
+            connectedAt: new Date().toISOString(),
+            version: 1
+        };
+
+        localStorage.setItem('teacherDiary.school', JSON.stringify(window.App.school));
+
         if (overlay) overlay.classList.remove('active');
+        
+        // Notify rest of the app
+        window.dispatchEvent(new CustomEvent('appReady', { 
+            detail: { 
+                schoolCode: code, 
+                schoolName: schoolConfig.schoolName 
+            } 
+        }));
 
-        // Start the app
-        if (typeof window.initApp === 'function') {
-            window.initApp();
+        if (window._pendingAuthTab) {
+            const authOverlay = document.getElementById('auth-overlay');
+            if (authOverlay) authOverlay.classList.add('active');
+            if (typeof window.switchAuthTab === 'function') window.switchAuthTab(window._pendingAuthTab);
+            window._pendingAuthTab = null;
         }
-    } catch (e) {
-        console.error("Failed to load school config:", e);
-        showSchoolCodeError("Failed to load configuration. Please try again.");
+
+    } catch (err) {
+        console.error("Error connecting to school:", err);
+        if (errorMsg) {
+            errorMsg.innerHTML = "An error occurred while connecting. Please check your internet and try again.";
+            errorMsg.style.display = 'block';
+        }
+        if (overlay) overlay.classList.add('active');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Connect';
+        }
     }
 }
 
-function handleSchoolCodeSubmit(event) {
+// Global functions for the UI
+window.handleSchoolCodeSubmit = function(event) {
     if (event) event.preventDefault();
-    const input = document.getElementById('schoolCodeInput');
-    const code = input ? input.value.trim() : '';
+    const input = document.getElementById('school-code-input');
+    const code = input.value.trim().toUpperCase();
     
     if (!code) {
-        showSchoolCodeError("Please enter a school code.");
+        const errorMsg = document.getElementById('school-code-error');
+        if (errorMsg) {
+            errorMsg.textContent = 'Please enter a school code.';
+            errorMsg.style.display = 'block';
+        }
         return;
     }
     
-    // Clear previous errors
-    const errorEl = document.getElementById('schoolCodeError');
-    if (errorEl) errorEl.style.display = 'none';
+    verifyAndConnectSchool(code);
+};
 
-    const submitBtn = document.getElementById('submitSchoolCodeBtn');
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner"></span> Loading...';
-    }
+window.changeSchool = function() {
+    localStorage.removeItem('teacherDiary.school');
+    // Also clear supabase auth tokens by signing out if possible, but simplest is to clear localstorage completely for supabase?
+    // Let's just clear school and auth state then reload
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('lastLoggedInEmail');
     
-    loadSchoolConfig(code).finally(() => {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Continue';
-        }
-    });
-}
-
-function bypassSchoolCode() {
-    // Only if local offline mode is allowed without a school
-    const overlay = document.getElementById('school-code-overlay');
-    if (overlay) overlay.classList.remove('active');
-    if (typeof window.initApp === 'function') {
-        window.initApp();
-    }
-}
-
-function showSchoolCodeError(msg) {
-    const errorEl = document.getElementById('schoolCodeError');
-    if (errorEl) {
-        errorEl.textContent = msg;
-        errorEl.style.display = 'block';
+    // Attempt to sign out of supabase if possible before reloading
+    if (window.App && window.App.supabase) {
+        window.App.supabase.auth.signOut().then(() => {
+            window.location.reload();
+        }).catch(() => {
+            window.location.reload();
+        });
     } else {
-        alert(msg); // Fallback
+        window.location.reload();
     }
-}
+};
 
-window.handleSchoolCodeSubmit = handleSchoolCodeSubmit;
-window.bypassSchoolCode = bypassSchoolCode;
+window.openLoginFlow = function(tab) {
+    if (window.App && window.App.school && window.App.school.schoolCode) {
+        const authOverlay = document.getElementById('auth-overlay');
+        if (authOverlay) authOverlay.classList.add('active');
+        if (typeof window.switchAuthTab === 'function') window.switchAuthTab(tab);
+    } else {
+        window._pendingAuthTab = tab;
+        const schoolOverlay = document.getElementById('school-code-overlay');
+        if (schoolOverlay) schoolOverlay.classList.add('active');
+    }
+};

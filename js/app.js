@@ -7,15 +7,20 @@ function setupTabs() {
             const tab = this.dataset.tab;
             document.querySelectorAll('.tab-nav button[data-tab]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+                el.style.display = 'none';
+            });
             const tabContent = document.getElementById('tab-' + tab);
             if (tabContent) {
                 tabContent.classList.add('active');
+                tabContent.style.display = '';
             }
             // render content
             if (tab === 'daily') renderDailyTab();
             if (tab === 'view') renderViewTab();
             if (tab === 'settings') loadSettingsUI();
+            if (tab === 'principal' && typeof renderPrincipalDashboard === 'function') renderPrincipalDashboard();
         });
     });
 }
@@ -32,15 +37,32 @@ function init() {
 
     // daily
     document.getElementById('dailyDate').addEventListener('change', renderDailyTab);
-    document.getElementById('saveDailyBtn').addEventListener('click', saveDaily);
-    document.getElementById('resetDailyBtn').addEventListener('click', resetDaily);
-    document.getElementById('copyPrevBtn').addEventListener('click', copyPreviousDay);
+    const saveDailyBtn = document.getElementById('saveDailyBtn');
+    if (saveDailyBtn) saveDailyBtn.addEventListener('click', saveDaily);
+    
+    const stickySaveBtn = document.getElementById('stickySaveBtn');
+    if (stickySaveBtn) stickySaveBtn.addEventListener('click', saveDaily);
+
+    const resetDailyBtn = document.getElementById('resetDailyBtn');
+    if (resetDailyBtn) resetDailyBtn.addEventListener('click', resetDaily);
+    
+    const copyPrevBtn = document.getElementById('copyPrevBtn');
+    if (copyPrevBtn) copyPrevBtn.addEventListener('click', copyPreviousDay);
+
+    // Initial setup for autosave
 
     // view
-    document.getElementById('viewSearch').addEventListener('input', renderViewTab);
+    const viewSearch = document.getElementById('viewSearch');
+    if (viewSearch) viewSearch.addEventListener('input', renderViewTab);
     document.getElementById('viewDateFrom').addEventListener('change', renderViewTab);
     document.getElementById('viewDateTo').addEventListener('change', renderViewTab);
     document.getElementById('viewSort').addEventListener('change', renderViewTab);
+    const viewStatusFilter = document.getElementById('viewStatusFilter');
+    if (viewStatusFilter) viewStatusFilter.addEventListener('change', renderViewTab);
+
+    // submit for approval
+    const submitForApprovalBtn = document.getElementById('submitForApprovalBtn');
+    if (submitForApprovalBtn) submitForApprovalBtn.addEventListener('click', handleSubmitForApproval);
 
     // settings
     document.getElementById('settingsSavePeriods').addEventListener('click', savePeriodsSetting);
@@ -66,12 +88,6 @@ function init() {
     if (seedCurriculumBtn) {
         seedCurriculumBtn.addEventListener('click', seedDatabaseCurriculum);
     }
-    document.getElementById('settingsSupabaseTest').addEventListener('click', testSupabase);
-    document.getElementById('settingsSupabasePush').addEventListener('click', doPushSupabase);
-    document.getElementById('settingsSupabasePull').addEventListener('click', doPullSupabase);
-
-
-
     document.getElementById('settingsExportCSV').addEventListener('click', exportCSV);
     document.getElementById('settingsImportCSV').addEventListener('click', () => document.getElementById('csvFileInput').click());
     document.getElementById('csvFileInput').addEventListener('change', function (e) {
@@ -81,8 +97,6 @@ function init() {
         }
     });
     document.getElementById('settingsClearAll').addEventListener('click', clearAllData);
-
-
 
     // setup authentication checking & listeners
     setupAuthListener();
@@ -114,17 +128,15 @@ function init() {
     });
 }
 
-window.initApp = init;
+// run
+window.addEventListener('appReady', init);
 
 // expose some functions globally for inline onclick
 window.toggleDayCard = toggleDayCard;
 window.editDay = editDay;
 window.deleteDay = deleteDay;
-window.toggleSqlHelper = toggleSqlHelper;
-window.copySqlScript = copySqlScript;
 window.openLightbox = openLightbox;
 window.closeLightbox = closeLightbox;
-window.loadTestPhoto = loadTestPhoto;
 window.switchAuthTab = switchAuthTab;
 window.handleAuthSubmit = handleAuthSubmit;
 window.handleSignOut = handleSignOut;
@@ -133,4 +145,6 @@ window.saveSubjectSetting = saveSubjectSetting;
 window.saveCurriculumConfigSetting = saveCurriculumConfigSetting;
 window.loadCurriculumCSV = loadCurriculumCSV;
 window.seedDatabaseCurriculum = seedDatabaseCurriculum;
-
+window.showFetchConfigModal = showFetchConfigModal;
+window.hideFetchConfigModal = hideFetchConfigModal;
+window.handleFetchConfigSubmit = handleFetchConfigSubmit;

@@ -1,14 +1,21 @@
 // ================================================================
 //  DATA MANAGER
 // ================================================================
-const STORAGE_KEY = 'teacherPlannerData';
+// Use a separate storage key if Offline Mode is active
+function getStorageKey() {
+    return localStorage.getItem('offlineMode') === 'true' 
+        ? 'teacherPlannerData_Offline' 
+        : 'teacherPlannerData';
+}
 
 function getDefaultData() {
     return {
         activities: [],
         settings: {
             periodsPerDay: 8,
-            supabaseTable: 'daily_activities',
+            supabaseUrl: window.ENV?.SUPABASE_URL || '',
+            supabaseKey: window.ENV?.SUPABASE_KEY || '',
+            supabaseTable: 'daily_entries',
             curriculumBoard: 'CBSE',
             curriculumClass: '10',
             curriculumSubject: 'Mathematics',
@@ -19,11 +26,49 @@ function getDefaultData() {
 
 function loadData() {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(getStorageKey());
         if (!raw) return getDefaultData();
         const parsed = JSON.parse(raw);
         if (!parsed.settings) parsed.settings = getDefaultData().settings;
         if (!parsed.activities) parsed.activities = [];
+        
+        const currentEmail = localStorage.getItem('lastLoggedInEmail');
+        if (currentEmail) {
+            let migrated = false;
+            parsed.activities.forEach(a => {
+                if (!a.teacher_email) {
+                    a.teacher_email = currentEmail;
+                    migrated = true;
+                }
+            });
+            if (migrated) {
+                // We don't call saveData to avoid recursion/loops, just write to localStorage directly
+                localStorage.setItem(getStorageKey(), JSON.stringify(parsed));
+            }
+        }
+        
+        // Wipe default developer credentials for existing user migrations (one-time check)
+        if (localStorage.getItem('isCredentialsWiped') !== 'true') {
+            const defaultUrl1 = 'https://syjhiqlfjieihhpymwdz.supabase.co';
+            const defaultUrl2 = 'https://syjhiqlfjieihhpymwd.supabase.co';
+            const defaultKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5amhpcWxmamllaWhocHltd2R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MDI5ODksImV4cCI6MjA5Nzk3ODk4OX0.AUeZ8FmGQ5ZcANqnzwzKN-0wgf4c8VJRnVjVu_9kqt0';
+            
+            let changed = false;
+            if (parsed.settings) {
+                if (parsed.settings.supabaseUrl === defaultUrl1 || parsed.settings.supabaseUrl === defaultUrl2) {
+                    parsed.settings.supabaseUrl = '';
+                    changed = true;
+                }
+                if (parsed.settings.supabaseKey === defaultKey) {
+                    parsed.settings.supabaseKey = '';
+                    changed = true;
+                }
+                if (changed) {
+                    localStorage.setItem(getStorageKey(), JSON.stringify(parsed));
+                }
+            }
+            localStorage.setItem('isCredentialsWiped', 'true');
+        }
         
         return parsed;
     } catch {
@@ -32,7 +77,7 @@ function loadData() {
 }
 
 function saveData(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(getStorageKey(), JSON.stringify(data));
 }
 
 function getSettings() {
@@ -77,25 +122,34 @@ function getTodayStr() {
 
 function getDayEntry(dateStr) {
     const activities = getActivities();
-    return activities.find(a => a.date === dateStr) || null;
+    const currentEmail = localStorage.getItem('lastLoggedInEmail');
+    return activities.find(a => a.date === dateStr && (!currentEmail || a.teacher_email === currentEmail)) || null;
 }
 
 function saveDayEntry(dateStr, periods) {
     const activities = getActivities();
     const existing = activities.findIndex(a => a.date === dateStr);
-    const entry = { id: generateId(), date: dateStr, periods: periods };
+    const email = localStorage.getItem('lastLoggedInEmail') || 'unknown';
+    
+    let entry;
     if (existing >= 0) {
+        entry = activities[existing];
+        entry.periods = periods;
+        entry.teacher_email = email;
         activities[existing] = entry;
     } else {
+        entry = { id: generateId(), date: dateStr, periods: periods, teacher_email: email };
         activities.push(entry);
     }
+    
     saveActivities(activities);
     return entry;
 }
 
 function deleteDayEntry(dateStr) {
     let activities = getActivities();
-    activities = activities.filter(a => a.date !== dateStr);
+    const currentEmail = localStorage.getItem('lastLoggedInEmail');
+    activities = activities.filter(a => !(a.date === dateStr && (!currentEmail || a.teacher_email === currentEmail)));
     saveActivities(activities);
 }
 

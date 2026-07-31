@@ -6,11 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>📚 Teacher's Daily Planner</title>
     <!-- Supabase JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/boot.js?v=7.0"></script>
-    <link rel="stylesheet" href="css/styles.css?v=4.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    </script>
+    <link rel="stylesheet" href="css/styles.css?v=7.0" />
     <!-- Intro.js Stylesheet -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/introjs.min.css" />
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered!', reg))
+                    .catch(err => console.error('SW registration failed', err));
+            });
+        }
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+        }
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark');
+        }
+    </script>
 </head>
 
 <body>
@@ -18,299 +34,112 @@
     <!-- ====== TOAST CONTAINER ====== -->
     <div id="toast-container"></div>
 
-    <!-- ====== APP ====== -->
-    <div id="app">
-        <!-- HEADER -->
-        <header class="app-header">
-            <h1>📚 Teacher's Planner <span>daily activities</span></h1>
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;">
-                <div class="header-user-banner hidden" id="headerUserBanner">
-                    <img class="header-user-avatar" id="headerUserAvatar" src="" alt="Profile" style="display:none;" />
-                    <span class="header-user-email" id="headerUserEmail"></span>
-                    <button class="btn-signout" onclick="handleSignOut()">Sign Out</button>
-                </div>
-                <div class="header-date" id="headerDate"></div>
-            </div>
-        </header>
-
-        <!-- TAB NAV -->
-        <nav class="tab-nav" id="tabNav">
-            <button class="active" data-tab="daily">📝 Daily Entry</button>
-            <button data-tab="view">🔍 View Activities <span class="badge" id="viewBadge">0</span></button>
-            <button data-tab="settings">⚙️ Settings</button>
-            <button id="startTourBtn" class="tour-btn" style="margin-left:auto;">❓ Tour Guide</button>
-        </nav>
-
-        <!-- ====== TAB: DAILY ENTRY ====== -->
-        <section class="tab-content active" id="tab-daily">
-            <!-- Curriculum Loading/Error Banner -->
-            <div id="curriculum-status-banner" class="curriculum-status-banner hidden">
-                <span class="status-icon">🔄</span>
-                <span id="curriculum-status-text">Loading curriculum topics from API...</span>
-                <button id="curriculum-retry-btn" class="btn btn-xs btn-outline hidden" style="margin-left:auto;">🔄 Retry</button>
-            </div>
-
-            <div class="card">
-                <div class="flex-between">
-                    <div class="card-title">📅 Daily Activities</div>
-                    <div class="flex-row gap-8">
-                        <input type="date" id="dailyDate" style="width:auto;padding:8px 12px;" />
-                        <button class="btn btn-outline btn-sm" id="copyPrevBtn">📋 Copy from previous</button>
-                    </div>
-                </div>
-                <div class="period-table-wrap mt-12">
-                    <table class="period-table" id="periodTable">
-                        <thead>
-                            <tr>
-                                <th style="width:60px;">Period</th>
-                                <th style="min-width:120px;">Class &amp; Section</th>
-                                <th style="min-width:180px;">Classwork</th>
-                                <th style="min-width:180px;">Homework</th>
-                                <th style="width:100px;text-align:center;">Photo</th>
-                            </tr>
-                        </thead>
-                        <tbody id="periodTableBody"></tbody>
-                    </table>
-                </div>
-                <div class="flex-row mt-12" style="justify-content:flex-end;gap:10px;">
-                    <button class="btn btn-outline" id="resetDailyBtn">↺ Reset</button>
-                    <button class="btn btn-primary" id="saveDailyBtn">💾 Save</button>
-                </div>
-                <div id="dailyStatus" class="text-muted text-sm mt-12" style="min-height:20px;"></div>
-            </div>
-        </section>
-
-        <!-- ====== TAB: VIEW ACTIVITIES ====== -->
-        <section class="tab-content" id="tab-view">
-            <div class="card">
-                <div class="card-title">🔍 Past Activities</div>
-                <div class="view-controls">
-                    <div class="search-box">
-                        <span class="search-icon">🔎</span>
-                        <input type="text" id="viewSearch" placeholder="Search by class, classwork, homework…" />
-                    </div>
-                    <div class="filter-group">
-                        <input type="date" id="viewDateFrom" />
-                        <span style="color:#94a3b8;">—</span>
-                        <input type="date" id="viewDateTo" />
-                        <select id="viewSort">
-                            <option value="date-desc">Newest first</option>
-                            <option value="date-asc">Oldest first</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="viewResults"></div>
-            </div>
-        </section>
-
-        <!-- ====== TAB: SETTINGS ====== -->
-        <section class="tab-content" id="tab-settings">
-            <div class="card">
-                <div class="card-title">⚙️ Settings</div>
-
-                <!-- Periods -->
-                <div class="settings-group">
-                    <div class="group-title">📊 Schedule</div>
-                    <div class="settings-row">
-                        <div>
-                            <label for="settingsPeriods">Number of periods per day</label>
-                            <input type="number" id="settingsPeriods" min="1" max="20" value="8" />
-                            <div class="settings-help">Changes will apply to new daily entries.</div>
-                        </div>
-                        <button class="btn btn-primary" id="settingsSavePeriods">Save</button>
-                    </div>
-                </div>
-
-                <!-- Teacher Subject -->
-                <div class="settings-group">
-                    <div class="group-title">🏫 Teacher Subject</div>
-                    <div class="settings-row">
-                        <div style="flex:1;">
-                            <label for="settingsTeacherSubject">Registered Subject</label>
-                            <select id="settingsTeacherSubject" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); color: var(--text);">
-                                <option value="">Loading subjects...</option>
-                            </select>
-                            <div class="settings-help">Filters autocomplete options to only show topics from this subject.</div>
-                        </div>
-                        <button class="btn btn-primary" id="settingsSaveSubject">Save</button>
-                    </div>
-                </div>
-
-                <!-- Curriculum CSV Endpoint -->
-                <div class="settings-group">
-                    <div class="group-title">🔗 Dynamic Curriculum Source</div>
-                    <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:12px;">
-                        <div style="display:flex;flex-wrap:wrap;gap:12px;">
-                            <div style="flex:1;min-width:140px;">
-                                <label for="settingsCurriculumBoard">Board</label>
-                                <select id="settingsCurriculumBoard" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
-                                    <option value="">Loading boards...</option>
-                                </select>
-                            </div>
-                            <div style="flex:1;min-width:100px;">
-                                <label for="settingsCurriculumClass">Class</label>
-                                <select id="settingsCurriculumClass" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
-                                    <option value="">Loading classes...</option>
-                                </select>
-                            </div>
-                            <div style="flex:1;min-width:140px;">
-                                <label for="settingsCurriculumSubject">Subject</label>
-                                <select id="settingsCurriculumSubject" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
-                                    <option value="">Loading subjects...</option>
-                                </select>
-                            </div>
-                            <div style="flex:1;min-width:120px;">
-                                <label for="settingsCurriculumFileType">File Type</label>
-                                <select id="settingsCurriculumFileType" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); color:var(--text);">
-                                    <option value="topics" selected>topics</option>
-                                    <option value="syllabus">syllabus</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                            <button class="btn btn-primary btn-sm" id="settingsSaveCurriculumConfig">Save Config</button>
-                            <button class="btn btn-outline btn-sm" id="settingsClearCacheBtn" onclick="clearApiCache(); showToast('🧹 API Cache cleared!', 'success');">🧹 Clear API Cache</button>
-                            <button class="btn btn-outline btn-sm" id="settingsRefreshCurriculum">🔄 Fetch Latest Now</button>
-                            <button class="btn btn-success btn-sm" id="fetchTopicsBtn" onclick="fetchTopicsFromAPI()">🌐 Fetch Dynamic Topics</button>
-                            <span id="fetchTopicsStatus" class="text-muted text-sm" style="margin-left:8px;"></span>
-                        </div>
-                        <div class="settings-help">Curriculum options and topic tags are loaded dynamically via URL endpoints in the backend database.</div>
-                    </div>
-                </div>
-
-                <!-- Supabase -->
-                <div class="settings-group">
-                    <div class="group-title">☁️ Supabase Sync</div>
-                    <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:12px;">
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                            <button class="btn btn-outline btn-sm" id="settingsSupabaseTest">🔌 Test Connection</button>
-                            <button class="btn btn-success btn-sm" id="settingsSupabasePush">⬆ Push to Supabase</button>
-                            <button class="btn btn-primary btn-sm" id="settingsSupabasePull">⬇ Pull from Supabase</button>
-                            <button class="btn btn-outline btn-sm" id="settingsSeedCurriculum"
-                                title="Populate the curriculum_topics table in Supabase with all current subject tags">🌱 Seed Curriculum to DB</button>
-                            <button class="btn btn-outline btn-sm" onclick="loadTestPhoto()"
-                                title="Injects a mock Base64 image into Period 1 for developer testing">🔬 Insert Test
-                                Photo (P1)</button>
-                            <span id="supabaseStatus" class="text-muted text-sm"
-                                style="align-self:center;margin-left:4px;"></span>
-                        </div>
-                        <div class="settings-help">Push sends all local data to Supabase. Pull replaces local data with
-                            remote data. Seed Curriculum uploads all topic tags to the database.</div>
-
-                        <div class="sql-helper-box" id="sqlHelperBox">
-                            <div class="sql-helper-header" onclick="toggleSqlHelper()">
-                                <span>🛠️ Need help setting up Supabase? Show SQL & Setup Instructions</span>
-                                <span class="chevron" id="sqlHelperChevron">▼</span>
-                            </div>
-                            <div class="sql-helper-content" id="sqlHelperContent" style="max-height: 0px;">
-                                <div class="sql-helper-body">
-                                    <p>To connect your planner, follow these steps in your Supabase project:</p>
-                                    <ol style="margin-top: 8px; padding-left: 18px;">
-                                        <li>Go to <strong>SQL Editor</strong> in the left sidebar and click <strong>+
-                                                New Query</strong>.</li>
-                                        <li>Copy and paste the SQL script from the <code>migration.sql</code> file at the root of your project:</li>
-                                    </ol>
-                                    <div class="code-container" id="sqlCodeContainer"
-                                        style="white-space: pre-wrap; font-family: monospace;">A complete database migration file is available at the root of your project: migration.sql.
-
-Please open it, copy its content, and run it in the Supabase SQL Editor.
-
-It will automatically:
-1. Create all 8 normalized tables (boards, classes, subjects, chapters, modules, questions, media_assets, content_tags)
-2. Seed the boards, classes, and subjects reference data
-3. Populate all Class 10 chapters and tags (Math, Science, English, Telugu, Social Studies)
-4. Enable RLS and setup Read/Write policies<button class="copy-sql-btn"
-                                             onclick="copySqlScript(event)">📋 Copy SQL</button></div></li>
-                                    </ol>
-                                    <ol start="3" style="margin-top: 8px; padding-left: 18px;">
-                                        <li>Go to <strong>Storage</strong> in the left sidebar, click <strong>New
-                                                Bucket</strong>. Name it <strong>activity_photos</strong> and make it
-                                            <strong>Public</strong>.
-                                        </li>
-                                        <li>Under Storage, go to <strong>Policies</strong>, find
-                                            <code>activity_photos</code> bucket, click <strong>New Policy</strong>,
-                                            choose <strong>For full customization</strong>, name it, select operations
-                                            <strong>ALL</strong>, target roles <strong>anon, authenticated</strong>, and
-                                            set both <strong>USING</strong> and <strong>WITH CHECK</strong> expressions
-                                            to <code>true</code>.
-                                        </li>
-                                        <li>To enable Google login, navigate to <strong>Authentication > Providers >
-                                                Google</strong>, toggle it on, and paste your Google OAuth Client ID and
-                                            Secret (obtainable from Google Cloud Console).</li>
-                                        <li>Go to <strong>Project Settings > API</strong>, copy your <strong>Project
-                                                URL</strong> and <strong>anon public API key</strong>, and paste them
-                                            into the fields above.</li>
-                                    </ol>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CSV -->
-            <div class="settings-group">
-                <div class="group-title">📁 Import / Export</div>
-                <div class="settings-row">
-                    <button class="btn btn-outline" id="settingsExportCSV">📤 Export CSV</button>
-                    <button class="btn btn-outline" id="settingsImportCSV">📥 Import CSV</button>
-                    <input type="file" id="csvFileInput" accept=".csv" style="display:none;" />
-                    <span class="text-muted text-sm" style="align-self:center;">Format:
-                        date,period_number,class_section,classwork,homework,photo_url</span>
-                </div>
-            </div>
-
-            <!-- Danger -->
-            <div class="settings-group">
-                <div class="group-title">⚠️ Danger Zone</div>
-                <div class="settings-row">
-                    <button class="btn btn-danger" id="settingsClearAll">🗑 Clear All Data</button>
-                    <span class="text-muted text-sm" style="align-self:center;">This will remove all local
-                        activities.</span>
-                </div>
-            </div>
-        </div>
-    </section>
-    </div>
-
     <!-- ====== SCHOOL CODE OVERLAY ====== -->
     <div id="school-code-overlay" class="auth-overlay">
         <div class="auth-card">
             <span class="auth-logo">🏫</span>
-            <h2 class="auth-title">School Verification</h2>
-            <p class="auth-subtitle">Enter your School Code to continue</p>
-            
+            <h2 class="auth-title">School Connect</h2>
+            <p class="auth-subtitle">Enter your school code to continue</p>
+
             <form onsubmit="handleSchoolCodeSubmit(event)">
                 <div class="auth-form-group">
-                    <label for="schoolCodeInput">School Code</label>
-                    <input type="text" id="schoolCodeInput" placeholder="e.g. ABC123" autocomplete="off" style="text-transform: uppercase;" />
-                    <div id="schoolCodeError" style="color: #ef4444; font-size: 13px; margin-top: 6px; display: none;"></div>
+                    <label for="school-code-input">School Code</label>
+                    <input type="text" id="school-code-input" required placeholder="e.g. ABC123" autocomplete="off" style="text-transform: uppercase;" />
+                    <div id="school-code-error" class="error-msg" style="display:none; color:#ef4444; font-size:13px; margin-top:8px;"></div>
                 </div>
-                
-                <div style="display:flex;gap:12px;margin-top:24px;flex-direction:column;">
-                    <button type="submit" class="btn btn-primary" id="submitSchoolCodeBtn" style="width:100%;">Continue</button>
-                    <span class="auth-local-link" onclick="bypassSchoolCode()"
-                        title="Use offline storage locally on this device without syncing" style="margin-top:8px;">Use Offline Mode Without School</span>
-                </div>
+                <button type="submit" class="auth-btn-submit" id="school-code-submit-btn">Connect</button>
             </form>
+            <div style="margin-top: 16px; text-align: center;">
+                <span class="auth-local-link" onclick="bypassAuthToLocal()" title="Use offline storage locally on this device without syncing">Continue in Offline Local Mode</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====== LANDING PAGE ====== -->
+    <div id="landing-page" class="landing-page">
+        <!-- Landing Navbar -->
+        <nav class="landing-nav">
+            <div class="landing-logo">📚 Teacher's Planner</div>
+            <div class="landing-nav-links">
+                <button class="btn btn-outline" onclick="bypassAuthToLocal()" style="background: white;">Try Offline</button>
+                <button class="btn btn-primary" onclick="openLoginFlow('login')">Login</button>
+            </div>
+        </nav>
+
+        <!-- Landing Hero -->
+        <div class="landing-hero">
+            <div class="landing-hero-content">
+                <h1 class="landing-title">The Ultimate Daily Companion for Teachers</h1>
+                <p class="landing-subtitle">Organize your daily school activities, track curriculum progress, and seamlessly manage your schedule from one beautiful dashboard.</p>
+                <div class="landing-buttons">
+                    <button class="btn btn-primary btn-lg" onclick="openLoginFlow('signup')">Get Started for Free</button>
+                    <button class="btn btn-outline btn-lg" onclick="openLoginFlow('login')" style="background: white;">Login to Dashboard</button>
+                </div>
+            </div>
+            
+            <!-- Features Section -->
+            <div class="landing-features">
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <h3>Smart Scheduling</h3>
+                    <p>Easily manage your daily timetable and keep track of periods, subjects, and topics.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">☁️</div>
+                    <h3>Cloud Sync</h3>
+                    <p>Your data is securely backed up and synced across all your devices using Supabase.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Progress Tracking</h3>
+                    <p>Review past activities and monitor your curriculum coverage effortlessly.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- ====== FETCH CONFIG OVERLAY ====== -->
+    <div id="config-fetch-overlay" class="auth-overlay">
+        <div class="auth-card">
+            <span class="auth-logo">🔑</span>
+            <h2 class="auth-title">Fetch Supabase Config</h2>
+            <p class="auth-subtitle">Enter credentials to fetch your configuration</p>
+            
+            <div class="auth-form-group">
+                <label for="fetchConfigUuid">UUID (Optional)</label>
+                <input type="text" id="fetchConfigUuid" placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000" autocomplete="off" />
+            </div>
+            
+            <div class="auth-form-group">
+                <label for="fetchConfigPin">PIN (Required)</label>
+                <input type="password" id="fetchConfigPin" placeholder="Enter PIN" autocomplete="off" />
+            </div>
+            
+            <div style="display:flex;gap:12px;margin-top:28px;">
+                <button class="btn btn-outline" id="cancelFetchConfigBtn" style="flex:1;">Cancel</button>
+                <button class="btn btn-primary" id="submitFetchConfigBtn" style="flex:1;">Submit</button>
+            </div>
         </div>
     </div>
 
     <!-- Intro.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
 
-    <script src="js/data.js?v=6.3"></script>
-    <script src="js/toast.js?v=6.3"></script>
-    <script src="js/supabase.js?v=6.3"></script>
-    <script src="js/storage-manager.js?v=6.3"></script>
-    <script src="js/api.js?v=6.3"></script>
-    <script src="js/csv.js?v=6.3"></script>
-    <script src="js/auth.js?v=6.3"></script>
-    <script src="js/ui.js?v=6.3"></script>
-    <script src="js/curriculum.js?v=6.3"></script>
-    <script src="js/autocomplete.js?v=6.3"></script>
-    <script src="js/tour.js?v=6.3"></script>
-    <script src="js/app.js?v=6.3"></script>
+    <script src="js/boot.js"></script>
+    <script src="js/data.js?v=7.0"></script>
+    <script src="js/toast.js?v=7.0"></script>
+    <script src="js/supabase.js?v=7.0"></script>
+    <script src="js/api.js?v=7.0"></script>
+    <script src="js/auth.js?v=7.0"></script>
+    <script>
+        window.addEventListener('appReady', () => {
+            if (typeof setupAuthListener === 'function') {
+                setupAuthListener();
+            }
+        });
+    </script>
 
     <!-- ====== AUTH OVERLAY ====== -->
     <div id="auth-overlay" class="auth-overlay">
@@ -367,13 +196,7 @@ It will automatically:
         </div>
     </div>
 
-    <!-- ====== LIGHTBOX MODAL ====== -->
-    <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox()">
-        <div class="lightbox-container" onclick="event.stopPropagation()">
-            <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
-            <img id="lightbox-img" class="lightbox-image" src="" alt="Activity Photo" />
-        </div>
-    </div>
+
 </body>
 
 </html>
