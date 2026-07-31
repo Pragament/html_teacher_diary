@@ -680,6 +680,13 @@ function deleteDay(dateStr) {
 //  UI: SETTINGS TAB
 // ================================================================
 async function loadSettingsUI() {
+    if (window.App && window.App.school) {
+        const schoolNameEl = document.getElementById('settingsSchoolName');
+        if (schoolNameEl) {
+            schoolNameEl.textContent = `${window.App.school.schoolName} (${window.App.school.schoolCode})`;
+        }
+    }
+
     const settings = getSettings();
     document.getElementById('settingsPeriods').value = settings.periodsPerDay || 8;
     

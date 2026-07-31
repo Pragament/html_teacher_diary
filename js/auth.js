@@ -3,6 +3,7 @@
 // ================================================================
 
 function isSupabaseConfigValid() {
+    if (window.App && window.App.supabase) return true;
     if (!window.ENV) return false;
     const url = window.ENV.SUPABASE_URL || '';
     const key = window.ENV.SUPABASE_KEY || '';

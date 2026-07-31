@@ -129,7 +129,7 @@ function init() {
 }
 
 // run
-document.addEventListener('DOMContentLoaded', init);
+window.addEventListener('appReady', init);
 
 // expose some functions globally for inline onclick
 window.toggleDayCard = toggleDayCard;

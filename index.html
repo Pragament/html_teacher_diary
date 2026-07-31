@@ -34,6 +34,27 @@
     <!-- ====== TOAST CONTAINER ====== -->
     <div id="toast-container"></div>
 
+    <!-- ====== SCHOOL CODE OVERLAY ====== -->
+    <div id="school-code-overlay" class="auth-overlay">
+        <div class="auth-card">
+            <span class="auth-logo">🏫</span>
+            <h2 class="auth-title">School Connect</h2>
+            <p class="auth-subtitle">Enter your school code to continue</p>
+
+            <form onsubmit="handleSchoolCodeSubmit(event)">
+                <div class="auth-form-group">
+                    <label for="school-code-input">School Code</label>
+                    <input type="text" id="school-code-input" required placeholder="e.g. ABC123" autocomplete="off" style="text-transform: uppercase;" />
+                    <div id="school-code-error" class="error-msg" style="display:none; color:#ef4444; font-size:13px; margin-top:8px;"></div>
+                </div>
+                <button type="submit" class="auth-btn-submit" id="school-code-submit-btn">Connect</button>
+            </form>
+            <div style="margin-top: 16px; text-align: center;">
+                <span class="auth-local-link" onclick="bypassAuthToLocal()" title="Use offline storage locally on this device without syncing">Continue in Offline Local Mode</span>
+            </div>
+        </div>
+    </div>
+
     <!-- ====== LANDING PAGE ====== -->
     <div id="landing-page" class="landing-page">
         <!-- Landing Navbar -->
@@ -41,7 +62,7 @@
             <div class="landing-logo">📚 Teacher's Planner</div>
             <div class="landing-nav-links">
                 <button class="btn btn-outline" onclick="bypassAuthToLocal()" style="background: white;">Try Offline</button>
-                <button class="btn btn-primary" onclick="document.getElementById('auth-overlay').classList.add('active'); switchAuthTab('login');">Login</button>
+                <button class="btn btn-primary" onclick="openLoginFlow('login')">Login</button>
             </div>
         </nav>
 
@@ -51,8 +72,8 @@
                 <h1 class="landing-title">The Ultimate Daily Companion for Teachers</h1>
                 <p class="landing-subtitle">Organize your daily school activities, track curriculum progress, and seamlessly manage your schedule from one beautiful dashboard.</p>
                 <div class="landing-buttons">
-                    <button class="btn btn-primary btn-lg" onclick="document.getElementById('auth-overlay').classList.add('active'); switchAuthTab('signup');">Get Started for Free</button>
-                    <button class="btn btn-outline btn-lg" onclick="document.getElementById('auth-overlay').classList.add('active'); switchAuthTab('login');" style="background: white;">Login to Dashboard</button>
+                    <button class="btn btn-primary btn-lg" onclick="openLoginFlow('signup')">Get Started for Free</button>
+                    <button class="btn btn-outline btn-lg" onclick="openLoginFlow('login')" style="background: white;">Login to Dashboard</button>
                 </div>
             </div>
             
@@ -106,14 +127,14 @@
     <!-- Intro.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
 
+    <script src="js/boot.js"></script>
     <script src="js/data.js?v=7.0"></script>
     <script src="js/toast.js?v=7.0"></script>
     <script src="js/supabase.js?v=7.0"></script>
-    <script src="js/env.js"></script>
     <script src="js/api.js?v=7.0"></script>
     <script src="js/auth.js?v=7.0"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('appReady', () => {
             if (typeof setupAuthListener === 'function') {
                 setupAuthListener();
             }

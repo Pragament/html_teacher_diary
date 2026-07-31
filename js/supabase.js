@@ -5,6 +5,12 @@ let supabaseClient = null;
 let supabaseClientConfig = '';
 
 function getSupabaseClient() {
+    // 1. Primary path: dynamic multi-school boot
+    if (window.App && window.App.supabase) {
+        return window.App.supabase;
+    }
+
+    // 2. Legacy fallback path: local dev via env.js
     if (!window.ENV || !window.ENV.SUPABASE_URL || !window.ENV.SUPABASE_KEY) return null;
     
     let url = window.ENV.SUPABASE_URL.trim();
