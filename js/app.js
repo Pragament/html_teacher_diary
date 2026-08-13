@@ -32,6 +32,33 @@ function init() {
     // header date
     document.getElementById('headerDate').textContent = '📅 ' + formatDate(getTodayStr());
 
+    // Pre-fill profile banner from cache so it shows instantly on refresh (before async auth resolves)
+    try {
+        const cached = JSON.parse(localStorage.getItem('cachedProfile') || 'null');
+        if (cached && cached.name) {
+            const userBanner = document.getElementById('headerUserBanner');
+            const userName = document.getElementById('headerUserName');
+            const userEmail = document.getElementById('headerUserEmail');
+            const userAvatar = document.getElementById('headerUserAvatar');
+            const userRole = document.getElementById('headerUserRole');
+            const userSchool = document.getElementById('headerUserSchool');
+            if (userBanner) userBanner.classList.remove('hidden');
+            if (userName) userName.textContent = cached.name;
+            if (userEmail) userEmail.textContent = cached.email || '';
+            if (userAvatar && cached.avatar) {
+                userAvatar.src = cached.avatar;
+                userAvatar.style.display = 'block';
+            }
+            if (userRole && cached.role) {
+                userRole.textContent = cached.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+            }
+            if (userSchool && cached.school) {
+                userSchool.textContent = cached.school;
+                userSchool.style.display = '';
+            }
+        }
+    } catch (e) { /* ignore */ }
+
     // tabs
     setupTabs();
 

@@ -3290,6 +3290,7 @@ body.dark .view-mode-switcher .view-btn:hover {
 /* 1. Cards Mode (Default) */
 .view-cards .period-card { display: flex; transition: all 0.2s; }
 .view-cards .period-card-header { cursor: pointer; }
+.view-cards .period-body { display: block; }
 .view-cards .period-card.collapsed .period-body { display: none; }
 .view-cards .compact-chevron { transition: transform 0.2s; }
 .view-cards .period-card.collapsed .compact-chevron { transform: rotate(-90deg); }
@@ -3333,3 +3334,141 @@ body.dark .view-mode-switcher .view-btn:hover {
     font-size: 14px;
     color: var(--text-main);
 }
+
+/* ================================================================
+   GRID VIEW (TRUE SPREADSHEET)
+   ================================================================ */
+
+.grid-wrapper {
+    overflow-x: auto;
+    padding-bottom: 12px;
+}
+
+.view-grid #periodCards {
+    display: block;
+    min-width: 1000px;
+}
+
+.view-grid .grid-header {
+    display: grid;
+    grid-template-columns: 36px 55px 80px 60px 120px minmax(300px, 1fr) minmax(300px, 1fr) 60px;
+    gap: 8px;
+    padding: 12px 8px;
+    font-weight: 700;
+    border-bottom: 2px solid var(--border);
+    background: var(--bg-body);
+    font-size: 13px;
+    color: var(--text-muted);
+    border-radius: 8px 8px 0 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.view-grid .period-card {
+    display: block;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+.view-grid .period-row-contents {
+    display: grid;
+    grid-template-columns: 36px 55px 80px 60px 120px minmax(300px, 1fr) minmax(300px, 1fr) 60px;
+    gap: 8px;
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--border);
+    align-items: start;
+    background: transparent;
+}
+
+.view-grid .period-card:nth-child(even) .period-row-contents {
+    background: rgba(0,0,0,0.02);
+}
+
+.view-grid .period-row-contents.active-row {
+    background: rgba(var(--primary-rgb, 99, 102, 241), 0.05);
+}
+
+/* Specific inner element styling for grid */
+.view-grid .period-card-header, 
+.view-grid .period-body, 
+.view-grid .period-meta {
+    display: contents;
+}
+
+.view-grid .period-badge {
+    background: transparent;
+    color: var(--text-main);
+    padding: 0;
+    font-weight: 600;
+    font-size: 13px;
+}
+.view-grid .period-badge span { display: none; }
+.view-grid label { display: none !important; }
+.view-grid .compact-chevron { display: none; }
+
+.view-grid input,
+.view-grid select,
+.view-grid textarea {
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 4px;
+    padding: 6px 8px !important;
+    width: 100% !important;
+    height: 100%;
+    min-height: 32px;
+    resize: vertical;
+    transition: all 0.15s ease;
+}
+
+.view-grid input:hover,
+.view-grid select:hover,
+.view-grid textarea:hover {
+    border-color: rgba(0,0,0,0.1);
+    background: rgba(255,255,255,0.5);
+}
+
+.view-grid input:focus,
+.view-grid select:focus,
+.view-grid textarea:focus {
+    border-color: var(--primary);
+    background: var(--bg-card);
+    box-shadow: 0 0 0 2px var(--primary-light);
+    outline: none;
+}
+
+/* Compact Files in Grid */
+.view-grid .file-attach-zone {
+    display: none;
+}
+
+.view-grid .compact-files-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    height: 32px;
+    width: 100%;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.view-grid .compact-files-btn:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+.period-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-top: 10px;
+}
+.status-empty { background-color: #cbd5e1; } /* Slate 300 */
+.status-progress { background-color: #facc15; } /* Yellow 400 */
+.status-complete { background-color: #22c55e; } /* Green 500 */

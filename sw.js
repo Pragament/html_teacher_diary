@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teacher-diary-v15';
+const CACHE_NAME = 'teacher-diary-v20';
 const ASSETS = [
     './',
     './index.html',
@@ -15,7 +15,15 @@ const ASSETS = [
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
-            return cache.addAll(ASSETS).catch(err => {
+            return Promise.all(
+                ASSETS.map(url => {
+                    return fetch(new Request(url, { cache: 'no-cache' }))
+                        .then(response => {
+                            if (!response.ok) throw new Error('Network response was not ok');
+                            return cache.put(url, response);
+                        });
+                })
+            ).catch(err => {
                 console.warn('Service worker install error (some assets might fail):', err);
             });
         })
@@ -45,7 +53,7 @@ self.addEventListener('fetch', event => {
     if (!url.origin.includes(location.origin)) return;
     
     event.respondWith(
-        caches.match(event.request).then(cachedResponse => {
+        caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
             if (cachedResponse) {
                 // Return cached version but fetch from network in background to update cache
                 event.waitUntil(

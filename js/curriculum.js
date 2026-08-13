@@ -61,7 +61,7 @@ async function loadCurriculumCSV(force = false) {
                     throw new Error(`Live API returned non-OK status: ${response.status}`);
                 }
             } catch (err) {
-                console.warn("Live API fetch failed.", err);
+                // console.warn("Live API fetch failed.", err);
             }
         }
 
@@ -109,7 +109,7 @@ async function loadCurriculumCSV(force = false) {
             }
         }
     } catch (err) {
-        console.error('Failed to load curriculum from API:', err);
+        // console.error('Failed to load curriculum from API:', err);
         window.isCurriculumFetched = true;
 
         if (banner) {
