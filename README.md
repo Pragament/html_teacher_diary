@@ -60,13 +60,40 @@ The app has evolved into a modular structure using HTML, Vanilla CSS, and JavaSc
 3. The Supabase JS SDK requires a secure context for certain operations, so `http://localhost` or `https://` is recommended.
 4. Copy `.env.example` to `.env` or set up your `env.js` with your Supabase credentials.
 
-### Supabase Setup
+### Supabase Setup & Workflow
 
-The application heavily relies on Supabase for data persistency and authentication.
-- Set up a project on Supabase.
-- Ensure the required tables are created (e.g., `daily_activities`, `profiles`, `notifications`, etc.).
-- The `all_migrations.sql` file in the root directory can be used to set up the database schema.
+The application heavily relies on Supabase for data persistency and authentication. The app supports a multi-tenant architecture, allowing you to map different school codes to their respective Supabase instances.
 
+#### 1. Create a Supabase Project
+- Create an account and a new project at [Supabase](https://supabase.com).
+- Go to **Project Settings -> API** to retrieve your **Project URL** and **anon public** key.
+
+#### 2. Run Database Migrations
+- Navigate to the **SQL Editor** in your Supabase dashboard.
+- Open the `all_migrations.sql` file found in the root of this repository.
+- Copy the entire file content, paste it into a new query in the SQL Editor, and click **Run**. This creates all required tables (e.g., `schools`, `users`, `daily_entries`), functions, and Row Level Security (RLS) policies.
+
+#### 3. Configure Authentication
+- In the Supabase dashboard, go to **Authentication -> Providers**.
+- Ensure the **Email** provider is enabled.
+- (Optional) Enable **Google** authentication. Follow Supabase's guide to get a Google Client ID and Secret, and add them to the Supabase dashboard. *(Note: Do not put these secrets in the frontend codebase).*
+
+#### 4. Configure Your School in the App
+The frontend connects to the correct Supabase instance based on a configuration file.
+1. Open the file `config/schools.v1.json`.
+2. Add or update an entry with a unique **School Code** (e.g., `"MYSCHOOL"`).
+3. Fill in the details using the credentials obtained in Step 1:
+   ```json
+   {
+       "MYSCHOOL": {
+           "schoolName": "My Awesome School",
+           "status": "active",
+           "supabaseUrl": "https://<your-project-id>.supabase.co",
+           "anonKey": "<your-anon-key>"
+       }
+   }
+   ```
+4. When a user opens the app (`index.html`), they will be asked for a **School Code**. Entering `MYSCHOOL` will connect them to the configured Supabase backend.
 ---
 
 ## 📦 Dependencies
