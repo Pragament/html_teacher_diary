@@ -3116,3 +3116,167 @@ body.dark .notification-card.unread {
 .introjs-bullets ul li a.active {
     background: var(--primary) !important;
 }
+
+/* ==========================================
+   SLOW LEARNER PROGRESS MONITORING MODAL & TABLE (FULL SCREEN)
+   ========================================== */
+#slow-learners-modal-overlay {
+    padding: 12px !important;
+}
+
+#slow-learners-modal-overlay .review-modal {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+    border: 1px solid #334155 !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85) !important;
+    padding: 20px 24px !important;
+    border-radius: 16px !important;
+    width: 98vw !important;
+    max-width: 98vw !important;
+    height: 96vh !important;
+    max-height: 96vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+}
+
+#slow-learners-modal-overlay .review-modal-header {
+    background: #0f172a !important;
+    border-bottom: 2px solid #334155 !important;
+    padding-bottom: 12px;
+    flex-shrink: 0;
+}
+
+#slow-learners-modal-overlay .school-badge-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #818cf8 !important;
+    text-transform: uppercase;
+}
+
+#slow-learners-modal-overlay .modal-main-title {
+    font-size: 22px;
+    font-weight: 800;
+    margin-top: 4px;
+    color: #ffffff !important;
+    letter-spacing: 0.5px;
+}
+
+#slow-learners-modal-overlay .modal-date-subtitle {
+    margin-top: 4px;
+    color: #94a3b8 !important;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#slow-learners-modal-overlay .date-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e2e8f0 !important;
+}
+
+#slow-learners-modal-overlay input[type="date"]#slowLearnerFilterDate {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #334155 !important;
+    background: #1e293b !important;
+    color: #ffffff !important;
+    color-scheme: dark !important;
+    font-weight: 500;
+}
+
+.slow-learners-table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    flex: 1 !important;
+    max-height: none !important;
+}
+
+.slow-learners-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 13px;
+}
+
+.slow-learners-table th {
+    padding: 12px 14px;
+    font-weight: 700;
+    color: #38bdf8 !important;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    border-right: 1px solid #334155;
+    border-bottom: 2px solid #334155;
+    background: #1e293b !important;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.slow-learners-table td {
+    padding: 8px 8px;
+    border-bottom: 1px solid #334155;
+    border-right: 1px solid #334155;
+    vertical-align: top;
+    background: #0f172a;
+}
+
+.slow-learners-table .sl-input {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #334155 !important;
+    background: #1e293b !important;
+    color: #ffffff !important;
+    font-size: 13px;
+    box-sizing: border-box;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    color-scheme: dark;
+}
+
+.slow-learners-table .sl-input::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.9;
+}
+
+.slow-learners-table .sl-input:focus {
+    outline: none;
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3) !important;
+    background: #1e293b !important;
+    color: #ffffff !important;
+}
+
+/* Force dark styling for select options across all browsers */
+.slow-learners-table select.sl-input option {
+    background-color: #1e293b !important;
+    color: #ffffff !important;
+    padding: 8px;
+}
+
+.slow-learners-table textarea.sl-input {
+    resize: vertical;
+    min-height: 48px;
+    line-height: 1.4;
+}
+
+.slow-learners-close-btn {
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.slow-learners-close-btn:hover {
+    color: #ffffff;
+}
+
+

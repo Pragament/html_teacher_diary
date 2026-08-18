@@ -59,6 +59,7 @@
         <nav class="tab-nav" id="tabNav">
             <button class="active" data-tab="daily">📝 Daily Entry</button>
             <button data-tab="view">🔍 View Activities <span class="badge" id="viewBadge">0</span></button>
+            <button onclick="openSlowLearnersModal()" style="border: 1px solid rgba(99, 102, 241, 0.4); color: #818cf8; background: rgba(99, 102, 241, 0.08);">🐢 Slow Learners</button>
             <button data-tab="principal" style="display:none;">📊 Principal Dashboard</button>
             <button data-tab="admin" style="display:none;">🛠️ Admin Panel</button>
             <button data-tab="notifications" id="notificationsTabBtn">
@@ -84,6 +85,7 @@
                     <div class="flex-row gap-8">
                         <input type="date" id="dailyDate" style="width:auto;padding:8px 12px;" />
                         <button class="btn btn-outline btn-sm" id="copyPrevBtn">📋 Copy from previous</button>
+                        <button class="btn btn-outline btn-sm" id="slowLearnersBtn" onclick="openSlowLearnersModal()" style="border-color:#6366f1; color:#818cf8; background:rgba(99,102,241,0.1); font-weight:600;">🐢 Slow Learner Progress</button>
                     </div>
                 </div>
                 <div id="periodCards" class="period-cards mt-12"></div>
@@ -443,7 +445,65 @@
     <script src="js/admin.js?v=7.1"></script>
     <script src="js/principal.js?v=1.0"></script>
     <script src="js/notifications.js?v=1.0"></script>
+    <script src="js/slow_learners.js?v=1.0"></script>
     <script src="js/app.js?v=7.1"></script>
+
+    <!-- ====== SLOW LEARNER PROGRESS MONITORING MODAL ====== -->
+    <div id="slow-learners-modal-overlay" class="review-modal-overlay" style="display:none;">
+        <div class="review-modal" style="position: relative;">
+            <div class="review-modal-header" style="position: relative;">
+                <div style="text-align: center; width: 100%;">
+                    <div class="school-badge-title">DELHI SECONDARY SCHOOL</div>
+                    <h2 class="modal-main-title">SLOW LEARNER PROGRESS MONITORING</h2>
+                    <p id="slowLearnersDateSubtitle" class="modal-date-subtitle"></p>
+                </div>
+                <button class="slow-learners-close-btn" onclick="closeSlowLearnersModal()" title="Close" style="position: absolute; right: 16px; top: 16px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label class="date-label">Date:</label>
+                    <input type="date" id="slowLearnerFilterDate" onchange="onSlowLearnerDateChange(this.value)" />
+                </div>
+                <button class="btn btn-sm btn-outline" onclick="addSlowLearnerRow()" style="border-color: #6366f1; color: #818cf8; font-weight: 600; background: rgba(99,102,241,0.1);">
+                    ➕ Add Student Row
+                </button>
+            </div>
+
+            <div class="slow-learners-table-container">
+                <table class="slow-learners-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 110px;">Date</th>
+                            <th style="width: 150px;">Student Name</th>
+                            <th style="width: 110px;">Subject</th>
+                            <th style="min-width: 170px;">Learning Gap</th>
+                            <th style="min-width: 190px;">Strategy/Method Used</th>
+                            <th style="width: 140px;">Progress</th>
+                            <th style="min-width: 170px;">Next Step</th>
+                            <th style="width: 70px; text-align: center;">Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slowLearnersTableBody">
+                        <!-- Rows injected dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="review-modal-actions" style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-outline btn-sm" onclick="exportSlowLearnersCSV()">📥 Export CSV</button>
+                    <button class="btn btn-outline btn-sm" onclick="clearAllSlowLearnerRows()" style="color: #ef4444; border-color: rgba(239,68,68,0.4);">🧹 Clear All Rows</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-outline" onclick="closeSlowLearnersModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveSlowLearnersData()" style="background: #6366f1; border-color: #6366f1;">💾 Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ====== TEACHER ANALYTICS MODAL ====== -->
     <div id="teacher-analytics-modal" class="review-modal-overlay" style="display:none;">
