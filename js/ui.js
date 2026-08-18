@@ -1,6 +1,24 @@
 // ================================================================
 //  UI: DAILY TAB
 // ================================================================
+window.currentViewMode = localStorage.getItem('dailyViewMode') || (window.innerWidth < 640 ? 'focus' : window.innerWidth < 1024 ? 'compact' : 'cards');
+window.currentFocusedPeriod = 1;
+window.unsavedPeriods = new Set();
+
+function toggleCard(headerEl, i) {
+    if (window.currentViewMode === 'cards') {
+        const card = headerEl.closest('.period-card');
+        if (card) card.classList.toggle('collapsed');
+    } else if (window.currentViewMode === 'compact') {
+        setFocusPeriod(i);
+    } else if (window.currentViewMode === 'focus') {
+        setFocusPeriod(i);
+    } else if (window.currentViewMode === 'grid') {
+        // no-op
+    }
+}
+
+
 function parseClassSection(val) {
     if (!val) return { class: '', section: '' };
     const parts = val.split('-');
@@ -44,7 +62,16 @@ async function renderDailyTab() {
         await fetchTodayTimetable(dateStr);
     }
     const timetableMap = window.currentTimetableMap || {}; 
-    container.innerHTML = '';
+    container.innerHTML = `<div class="grid-header" id="gridHeader">
+        <div></div>
+        <div>Period</div>
+        <div>Class</div>
+        <div>Sec</div>
+        <div>Subject</div>
+        <div>Classwork</div>
+        <div>Homework</div>
+        <div>Files</div>
+    </div>`;
 
     for (let i = 1; i <= periodsPerDay; i++) {
         const existing = periods.find(p => p.periodNumber === i) || {
@@ -97,12 +124,16 @@ async function renderDailyTab() {
         }
         
         const card = document.createElement('div');
-        card.className = 'period-card';
+        card.className = 'period-card' + (i === window.currentFocusedPeriod ? ' active focused' : '');
         
+        const fileCount = existingFiles.length;
         const filesHtml = `
             <div class="file-attach-zone" id="file-zone-${i}">
                 ${renderFileAttachZone(i)}
             </div>
+            <button class="compact-files-btn" onclick="switchToFocusForFiles(${i})" title="Manage files">
+                📎 ${fileCount > 0 ? fileCount : ''}
+            </button>
         `;
         
         // Ensure dropdown options match the parsed class
@@ -113,20 +144,38 @@ async function renderDailyTab() {
         ].join('');
 
         card.innerHTML = `
-          <div class="period-card-header">
-            <span class="period-badge">Period ${i}</span>
-            <div class="period-meta" style="display:flex; gap:8px; align-items:center;">
-                <select class="daily-class-dropdown" data-period="${i}" style="width:80px; padding:2px; font-size:12px;">${classDropdownOptions}</select>
-                <input type="text" class="daily-section-input" data-period="${i}" value="${escHtml(parsed.section)}" placeholder="Sec" style="width:40px; padding:2px; font-size:12px;" />
-                <input type="text" class="daily-subject-input" data-period="${i}" value="${escHtml(subject)}" placeholder="Subject" style="width:80px; padding:2px; font-size:12px;" />
+          <div class="period-row-contents">
+            <div style="display: flex; justify-content: center; align-items: start;">
+                <span class="period-status-dot status-empty" id="row-status-${i}"></span>
             </div>
-          </div>
-          <label style="font-size:12px; margin-top:8px;">Classwork</label>
-          <textarea class="daily-work" data-period="${i}" rows="2" placeholder="What was taught?">${escHtml(classwork)}</textarea>
-          <label style="font-size:12px; margin-top:8px;">Homework</label>
-          <textarea class="daily-home" data-period="${i}" rows="2" placeholder="Homework assigned?">${escHtml(homework)}</textarea>
-          <div class="period-card-footer">
-            <div>${filesHtml}</div>
+            <div class="period-card-header" onclick="toggleCard(this, ${i})" style="cursor:pointer; display: flex; align-items: start;">
+                <div style="display:flex; align-items:center; gap:4px; height: 32px;">
+                    <span class="period-badge">P${i} <span style="opacity:0.8; font-size:11px; margin-left:4px; display:none;">(${i}/${periodsPerDay})</span></span>
+                    <span class="compact-chevron" style="font-size:12px; color:var(--text-muted);">&#9660;</span>
+                </div>
+            </div>
+            <div class="period-meta" style="display:flex; gap:8px; align-items:start;" onclick="event.stopPropagation()">
+                <select class="daily-class-dropdown" data-period="${i}" data-field="class">${classDropdownOptions}</select>
+            </div>
+            <div style="display:flex; align-items:start;" onclick="event.stopPropagation()">
+                <input type="text" class="daily-section-input" data-period="${i}" data-field="section" value="${escHtml(parsed.section)}" placeholder="Sec" />
+            </div>
+            <div style="display:flex; align-items:start;" onclick="event.stopPropagation()">
+                <input type="text" class="daily-subject-input" data-period="${i}" data-field="subject" value="${escHtml(subject)}" placeholder="Subject" />
+            </div>
+            <div class="period-body" style="display: contents;">
+                <div style="display:flex; flex-direction:column; height:100%;">
+                    <label style="font-size:12px; margin-top:8px; display:block;">Classwork</label>
+                    <textarea class="daily-work" data-period="${i}" data-field="classwork" rows="2" placeholder="What was taught?">${escHtml(classwork)}</textarea>
+                </div>
+                <div style="display:flex; flex-direction:column; height:100%;">
+                    <label style="font-size:12px; margin-top:8px; display:block;">Homework</label>
+                    <textarea class="daily-home" data-period="${i}" data-field="homework" rows="2" placeholder="Homework assigned?">${escHtml(homework)}</textarea>
+                </div>
+                <div class="period-card-footer" style="display: flex; align-items: start; min-height: 32px;">
+                    <div style="width: 100%;">${filesHtml}</div>
+                </div>
+            </div>
           </div>
         `;
         container.appendChild(card);
@@ -138,8 +187,280 @@ async function renderDailyTab() {
             `📝 No entry yet for ${formatDate(dateStr)}`;
     }
 
+    // Setup view controls and classes
+    updateViewModeClasses();
+    renderDailyControls();
+    
+    // Attach listeners for live status updates
+    attachLiveStatusListeners();
+
+    // Attach active-row highlighters for grid mode
+    if (!container.dataset.focusListenersAttached) {
+        container.dataset.focusListenersAttached = "true";
+        container.addEventListener('focusin', function(e) {
+            if (window.currentViewMode !== 'grid') return;
+            const target = e.target;
+            if (target.matches('input, textarea, select')) {
+                const row = target.closest('.period-row-contents');
+                if (row) row.classList.add('active-row');
+            }
+        });
+        container.addEventListener('focusout', function(e) {
+            if (window.currentViewMode !== 'grid') return;
+            const target = e.target;
+            if (target.matches('input, textarea, select')) {
+                const row = target.closest('.period-row-contents');
+                if (row) row.classList.remove('active-row');
+            }
+        });
+    }
+
+    // Attach grid keyboard navigation (only attach once, check if attached)
+    if (!container.dataset.gridNavAttached) {
+        container.dataset.gridNavAttached = "true";
+        container.addEventListener('keydown', function(e) {
+            if (window.currentViewMode !== 'grid') return;
+            
+            const target = e.target;
+            if (!target.matches('input, textarea, select')) return;
+
+            // Esc
+            if (e.key === 'Escape') {
+                target.blur();
+                return;
+            }
+
+            const fieldName = target.getAttribute('data-field');
+            if (!fieldName) return;
+            
+            const card = target.closest('.period-card');
+            if (!card) return;
+            
+            const allCards = Array.from(container.querySelectorAll('.period-card'));
+            const rowIdx = allCards.indexOf(card);
+            
+            let moveDir = 0; // -1 for up, 1 for down
+            
+            if (e.key === 'ArrowUp' && target.tagName !== 'TEXTAREA') {
+                moveDir = -1;
+            } else if (e.key === 'ArrowDown' && target.tagName !== 'TEXTAREA') {
+                moveDir = 1;
+            } else if (e.key === 'Enter') {
+                if (target.tagName === 'TEXTAREA') {
+                    if (e.ctrlKey || e.metaKey) moveDir = 1;
+                } else {
+                    moveDir = 1;
+                }
+            }
+            
+            if (moveDir !== 0) {
+                e.preventDefault();
+                let nextIdx = rowIdx + moveDir;
+                let found = false;
+                
+                // Find next valid field in that column
+                while (nextIdx >= 0 && nextIdx < allCards.length) {
+                    const nextCard = allCards[nextIdx];
+                    const nextField = nextCard.querySelector(`[data-field="${fieldName}"]:not([disabled]):not([readonly])`);
+                    if (nextField) {
+                        nextField.focus();
+                        found = true;
+                        break;
+                    }
+                    nextIdx += moveDir;
+                }
+                
+                // If we reached the end and are moving down, focus save or submit button
+                if (!found && moveDir === 1 && nextIdx >= allCards.length) {
+                    const submitBtn = document.getElementById('submitForApprovalBtn');
+                    const saveBtn = document.getElementById('saveDailyBtn');
+                    if (submitBtn && submitBtn.style.display !== 'none' && !submitBtn.disabled) {
+                        submitBtn.focus();
+                    } else if (saveBtn && !saveBtn.disabled) {
+                        saveBtn.focus();
+                    }
+                }
+            }
+        });
+    }
+
     // Refresh approval status banner and button visibility
     updateApprovalBanner(dateStr);
+}
+
+// ================================================================
+//  VIEW MODES & STATUS BAR
+// ================================================================
+function switchViewMode(mode) {
+    window.currentViewMode = mode;
+    localStorage.setItem('dailyViewMode', mode);
+    
+    if (mode !== 'focus') {
+        window.previousViewMode = null;
+    }
+    
+    updateViewModeClasses();
+    renderDailyControls();
+    
+    // Auto-focus only when explicitly switching to grid mode
+    if (mode === 'grid') {
+        setTimeout(() => {
+            const firstField = document.querySelector('.view-grid .period-card input:not([disabled]):not([readonly])');
+            if (firstField) firstField.focus();
+        }, 100);
+    }
+}
+
+function updateViewModeClasses() {
+    const container = document.getElementById('periodCards');
+    if (!container) return;
+    container.className = 'period-cards mt-12 view-' + window.currentViewMode;
+    
+    // In focus mode, ensure at least one card is focused
+    if (window.currentViewMode === 'focus') {
+        setFocusPeriod(window.currentFocusedPeriod);
+    }
+}
+
+function setFocusPeriod(num) {
+    const periodsPerDay = window.getSettings ? window.getSettings().periodsPerDay : 8;
+    if (num < 1) num = 1;
+    if (num > periodsPerDay) num = periodsPerDay;
+    window.currentFocusedPeriod = num;
+    
+    const cards = document.querySelectorAll('.period-card');
+    cards.forEach((card, idx) => {
+        if (idx + 1 === num) {
+            // If already active in compact mode, clicking header toggles it off
+            if (window.currentViewMode === 'compact' && card.classList.contains('active')) {
+                card.classList.remove('active', 'focused');
+            } else {
+                card.classList.add('active', 'focused');
+            }
+        } else {
+            card.classList.remove('active', 'focused');
+        }
+    });
+    
+    if (window.currentViewMode === 'focus') {
+        renderDailyControls(); // Re-render to update focus navigation disabled states
+    }
+
+    setTimeout(() => {
+        const activePill = document.querySelector('.status-pill.active');
+        if (activePill) activePill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }, 50);
+}
+
+function renderDailyControls() {
+    const controlsContainer = document.getElementById('dailyControls');
+    if (!controlsContainer) return;
+
+    // View Switcher HTML
+    const viewSwitcherHtml = `
+        <div class="view-mode-switcher" style="display: flex; gap: 4px; align-items: center; justify-content: center; flex-wrap: wrap;">
+            <button class="view-btn ${window.currentViewMode === 'cards' ? 'active' : ''}" onclick="switchViewMode('cards')">📋 Cards</button>
+            <button class="view-btn ${window.currentViewMode === 'compact' ? 'active' : ''}" onclick="switchViewMode('compact')">📑 Compact</button>
+            <button class="view-btn ${window.currentViewMode === 'grid' ? 'active' : ''}" onclick="switchViewMode('grid')">▦ Grid</button>
+            <button class="view-btn ${window.currentViewMode === 'focus' ? 'active' : ''}" onclick="switchViewMode('focus')">📱 Focus</button>
+            ${window.currentViewMode === 'focus' && window.previousViewMode === 'grid' ? `<button class="view-btn" onclick="switchViewMode('grid')" style="background:var(--primary); color:white; margin-left:8px;">← Back to Grid</button>` : ''}
+            <button class="view-btn kbd-help-btn" onclick="showKeyboardHelp()" title="Keyboard Shortcuts" style="padding: 6px 10px; margin-left: 8px;">⌨ Shortcuts</button>
+        </div>
+    `;
+
+    // Status / Navigation Bar HTML
+    const periodsPerDay = window.getSettings ? window.getSettings().periodsPerDay : 8;
+    
+    const statsHtml = `
+        <div class="completion-stats">
+            <div><span id="completedCount">0</span> / ${periodsPerDay} Completed</div>
+            <div class="stats-bar-container"><div id="completedBar" class="stats-bar-fill" style="width: 0%"></div></div>
+        </div>
+    `;
+
+    let statusPillsHtml = '<div class="period-status-bar">';
+    for (let i = 1; i <= periodsPerDay; i++) {
+        statusPillsHtml += `<button class="status-pill" id="status-pill-${i}" onclick="setFocusPeriod(${i})">
+            <span class="status-num">${i}</span><span class="status-icon">⚪</span>
+        </button>`;
+    }
+    statusPillsHtml += '</div>';
+
+    // Focus Navigation HTML (Only shows in focus mode)
+    let focusNavHtml = '';
+    if (window.currentViewMode === 'focus') {
+        const prevDisabled = window.currentFocusedPeriod <= 1 ? 'disabled' : '';
+        const nextDisabled = window.currentFocusedPeriod >= periodsPerDay ? 'disabled' : '';
+        focusNavHtml = `
+            <div class="focus-nav">
+                <button class="btn btn-outline" onclick="setFocusPeriod(${window.currentFocusedPeriod - 1})" ${prevDisabled}>← Prev</button>
+                <span class="focus-nav-title">Period ${window.currentFocusedPeriod}</span>
+                <button class="btn btn-outline" onclick="setFocusPeriod(${window.currentFocusedPeriod + 1})" ${nextDisabled}>Next →</button>
+            </div>
+        `;
+    }
+
+    controlsContainer.innerHTML = statsHtml + viewSwitcherHtml + statusPillsHtml + focusNavHtml;
+    updateStatusBar(); // Populate actual statuses based on DOM inputs
+}
+
+function updateStatusBar() {
+    const cards = document.querySelectorAll('.period-card');
+    let completed = 0;
+    
+    cards.forEach((card, idx) => {
+        const periodNum = idx + 1;
+        const workVal = card.querySelector('.daily-work')?.value?.trim() || '';
+        const homeVal = card.querySelector('.daily-home')?.value?.trim() || '';
+        
+        let icon = '⚪'; // Empty
+        let stateClass = 'status-empty';
+        
+        if (window.unsavedPeriods.has(periodNum)) {
+            icon = '✏️'; // Editing
+            stateClass = 'status-progress';
+        } else if (workVal && homeVal) {
+            icon = '🟢'; // Completed
+            stateClass = 'status-complete';
+            completed++;
+        } else if (workVal || homeVal) {
+            icon = '🟡'; // In Progress
+            stateClass = 'status-progress';
+        }
+
+        const pill = document.getElementById(`status-pill-${periodNum}`);
+        if (pill) {
+            const iconSpan = pill.querySelector('.status-icon');
+            if (iconSpan) iconSpan.textContent = icon;
+            pill.className = `status-pill ${stateClass} ${periodNum === window.currentFocusedPeriod ? 'active' : ''}`;
+        }
+        
+        const statusDot = document.getElementById(`row-status-${periodNum}`);
+        if (statusDot) {
+            statusDot.className = `period-status-dot ${stateClass}`;
+        }
+    });
+
+    const countEl = document.getElementById('completedCount');
+    const barEl = document.getElementById('completedBar');
+    if (countEl) countEl.textContent = completed;
+    if (barEl) {
+        const total = window.getSettings ? window.getSettings().periodsPerDay : 8;
+        barEl.style.width = Math.round((completed / total) * 100) + '%';
+    }
+}
+
+function attachLiveStatusListeners() {
+    const inputs = document.querySelectorAll('.daily-work, .daily-home, .daily-class-dropdown, .daily-section-input, .daily-subject-input');
+    inputs.forEach(input => {
+        input.addEventListener('input', (e) => {
+            const periodNum = parseInt(e.target.dataset.period);
+            if (periodNum) {
+                window.unsavedPeriods.add(periodNum);
+                updateStatusBar();
+            }
+        });
+    });
 }
 
 // ================================================================
@@ -396,6 +717,7 @@ async function saveDaily() {
 
     const saveBtn = document.getElementById('saveDailyBtn');
     const stickySaveBtn = document.getElementById('stickySaveBtn');
+    const floatingStatus = document.getElementById('floatingSaveStatus');
     
     let originalBtnHtml = '';
     if (!window.isAutoSaving) {
@@ -408,6 +730,9 @@ async function saveDaily() {
             stickySaveBtn.disabled = true;
             stickySaveBtn.textContent = 'Saving...';
         }
+    } else if (floatingStatus) {
+        floatingStatus.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;"></span> ⟳ Saving...';
+        floatingStatus.classList.add('visible');
     }
 
     try {
@@ -443,19 +768,32 @@ async function saveDaily() {
             }
         }
 
+        const syncUI = () => {
+            periods.forEach(p => {
+                const state = window.periodFiles[p.periodNumber];
+                if (state) {
+                    state.existing = p.files || [];
+                    state.pending = p.pendingFiles || [];
+                    const zone = document.getElementById(`file-zone-${p.periodNumber}`);
+                    if (zone) zone.innerHTML = renderFileAttachZone(p.periodNumber);
+                }
+            });
+        };
+
         if (typeof saveEntryToSupabase === 'function') {
             const result = await saveEntryToSupabase(dateStr, periods);
             if (!result.ok && !window.isAutoSaving) {
                 showToast(`⚠️ Sync failed. Saved offline.`, 'warning');
+                syncUI();
             } else if (result.ok && !window.isAutoSaving) {
                 showToast(`✅ Saved activities for ${formatDate(dateStr)}`, 'success');
-                renderDailyTab();
+                syncUI();
             }
         } else {
             saveDayEntry(dateStr, periods);
             if (!window.isAutoSaving) {
                 showToast(`✅ Saved activities for ${formatDate(dateStr)}`, 'success');
-                renderDailyTab();
+                syncUI();
             }
         }
         
@@ -467,7 +805,13 @@ async function saveDaily() {
         if (!window.isAutoSaving) {
             if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = originalBtnHtml; }
             if (stickySaveBtn) { stickySaveBtn.disabled = false; stickySaveBtn.textContent = '✓ Save All'; }
+        } else if (floatingStatus) {
+            floatingStatus.innerHTML = '✓ Saved';
+            setTimeout(() => floatingStatus.classList.remove('visible'), 2000);
         }
+        
+        window.unsavedPeriods.clear();
+        updateStatusBar();
     }
 }
 
@@ -680,6 +1024,13 @@ function deleteDay(dateStr) {
 //  UI: SETTINGS TAB
 // ================================================================
 async function loadSettingsUI() {
+    if (window.App && window.App.school) {
+        const schoolNameEl = document.getElementById('settingsSchoolName');
+        if (schoolNameEl) {
+            schoolNameEl.textContent = `${window.App.school.schoolName} (${window.App.school.schoolCode})`;
+        }
+    }
+
     const settings = getSettings();
     document.getElementById('settingsPeriods').value = settings.periodsPerDay || 8;
     
@@ -963,7 +1314,6 @@ function hideFetchConfigModal() {
 
 window.showFetchConfigModal = showFetchConfigModal;
 window.hideFetchConfigModal = hideFetchConfigModal;
-window.handleFetchConfigSubmit = handleFetchConfigSubmit;
 
 
 // ================================================================
@@ -982,4 +1332,73 @@ function applyRoleBasedUI(role) {
     }
 }
 window.applyRoleBasedUI = applyRoleBasedUI;
+window.switchViewMode = switchViewMode;
+window.setFocusPeriod = setFocusPeriod;
 
+// Keyboard & Swipe Gestures
+window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (typeof saveDaily === 'function') {
+            const saveBtn = document.getElementById('saveDailyBtn');
+            if (saveBtn) {
+                const originalText = saveBtn.textContent;
+                saveBtn.textContent = 'Saving...';
+                saveDaily().then(() => {
+                    saveBtn.textContent = '✓ Saved';
+                    setTimeout(() => saveBtn.textContent = originalText, 2000);
+                });
+            } else {
+                saveDaily();
+            }
+        }
+        return;
+    }
+    
+    
+    if (window.currentViewMode !== 'focus') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return; // Don't trigger when typing
+    if (e.ctrlKey && e.key === 'ArrowRight') setFocusPeriod(window.currentFocusedPeriod + 1);
+    if (e.ctrlKey && e.key === 'ArrowLeft') setFocusPeriod(window.currentFocusedPeriod - 1);
+});
+
+let touchStartX = 0;
+window.addEventListener('touchstart', e => {
+    if (e.target.closest('.period-cards')) {
+        touchStartX = e.changedTouches[0].screenX;
+    }
+});
+window.addEventListener('touchend', e => {
+    
+    if (window.currentViewMode !== 'focus') return;
+    if (e.target.closest('.period-cards')) {
+        const touchEndX = e.changedTouches[0].screenX;
+        if (touchStartX - touchEndX > 70) setFocusPeriod(window.currentFocusedPeriod + 1); // Swipe left = Next
+        if (touchEndX - touchStartX > 70) setFocusPeriod(window.currentFocusedPeriod - 1); // Swipe right = Prev
+    }
+});
+
+
+function showKeyboardHelp() {
+    const modalHtml = `
+        <div class="modal-overlay active" id="kbdHelpModal" onclick="this.remove()">
+            <div class="modal-content" style="max-width: 450px;" onclick="event.stopPropagation()">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+                    <h3 style="margin:0;">⌨ Keyboard Navigation</h3>
+                    <button class="btn-icon" onclick="document.getElementById('kbdHelpModal').remove()">✕</button>
+                </div>
+                <div class="kbd-shortcuts-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+                    <div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; background:var(--bg-body); padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace;">Tab</span><span style="color:var(--text-muted); font-size:13px;">Next field</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; background:var(--bg-body); padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace;">Shift + Tab</span><span style="color:var(--text-muted); font-size:13px;">Previous field</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; background:var(--bg-body); padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace;">Enter</span><span style="color:var(--text-muted); font-size:13px;">Next period (from input/select)</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; background:var(--bg-body); padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace;">Ctrl/⌘ + Enter</span><span style="color:var(--text-muted); font-size:13px;">Next period (from text areas)</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; background:var(--bg-body); padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace;">↑ / ↓</span><span style="color:var(--text-muted); font-size:13px;">Move between periods (inputs only)</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; background:var(--bg-body); padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace;">Esc</span><span style="color:var(--text-muted); font-size:13px;">Remove focus</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span style="font-weight:bold; background:var(--bg-body); padding:2px 6px; border-radius:4px; font-size:12px; font-family:monospace;">Ctrl/⌘ + S</span><span style="color:var(--text-muted); font-size:13px;">Save diary</span></div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+window.showKeyboardHelp = showKeyboardHelp;

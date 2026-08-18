@@ -3,6 +3,7 @@
 // ================================================================
 
 function isSupabaseConfigValid() {
+    if (window.App && window.App.supabase) return true;
     if (!window.ENV) return false;
     const url = window.ENV.SUPABASE_URL || '';
     const key = window.ENV.SUPABASE_KEY || '';
@@ -16,6 +17,7 @@ let isBypassedAuth = localStorage.getItem('offlineMode') === 'true';
 let currentAuthTab = 'login';
 let authListenerBound = false;
 let currentBoundClientConfig = '';
+let initialSessionResolved = false; // guards against premature null-session events
 
 function switchAuthTab(tab) {
     currentAuthTab = tab;
@@ -129,10 +131,14 @@ async function handleGoogleSignIn(event) {
             return;
         }
         
+        // Build redirect URL: always land on dashboard.html after Google OAuth
+        const basePath = window.location.pathname.replace(/\/[^/]*$/, '/');
+        const redirectTo = window.location.origin + basePath + 'dashboard.html';
+
         const { error } = await client.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin + window.location.pathname,
+                redirectTo: redirectTo,
                 queryParams: {
                     prompt: 'select_account'
                 }
@@ -171,10 +177,16 @@ async function setupAuthListener() {
         if (client) {
             try {
                 const { data: { session } } = await client.auth.getSession();
+                initialSessionResolved = true;
                 if (session) {
                     handleAuthState(session);
+                } else {
+                    // Confirmed: genuinely no session — clear cache and handle accordingly
+                    localStorage.removeItem('cachedProfile');
+                    handleAuthState(null);
                 }
             } catch (e) {
+                initialSessionResolved = true;
                 console.warn('Error fetching initial session:', e);
             }
 
@@ -182,6 +194,9 @@ async function setupAuthListener() {
             const configKey = (settings.supabaseUrl || '') + '|' + (settings.supabaseKey || '');
             if (!authListenerBound || currentBoundClientConfig !== configKey) {
                 client.auth.onAuthStateChange((event, session) => {
+                    // Ignore null-session events that fire before the initial check resolves
+                    // (Supabase v2 fires SIGNED_OUT briefly before INITIAL_SESSION)
+                    if (!initialSessionResolved && !session) return;
                     handleAuthState(session);
                 });
                 authListenerBound = true;
@@ -232,12 +247,13 @@ async function upsertUserProfileAndFetchRole(session) {
             }, { onConflict: 'id' });
             return { role: 'teacher' };
         } else {
-            // Update name, avatar
+            // Update name, avatar while preserving role
             await client.from('users').upsert({
                 id: session.user.id,
                 email: email,
                 name: name,
                 avatar_url: avatarUrl,
+                role: profile.role || 'teacher',
                 updated_at: new Date().toISOString()
             }, { onConflict: 'id' });
             
@@ -278,6 +294,17 @@ async function handleAuthState(session) {
         if (userName) userName.textContent = displayName;
         if (userEmail) userEmail.textContent = session.user.email;
         
+        // Resolve avatar URL, falling back to a generated initials avatar
+        let avatarUrl = meta.avatar_url || meta.picture || '';
+        if (!avatarUrl && displayName) {
+            avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4f46e5&color=fff&rounded=true&bold=true`;
+        }
+        const userAvatar = document.getElementById('headerUserAvatar');
+        if (userAvatar) {
+            userAvatar.src = avatarUrl;
+            userAvatar.style.display = avatarUrl ? 'block' : 'none';
+        }
+
         // Fetch role from DB
         const profileInfo = await upsertUserProfileAndFetchRole(session);
         window.currentUserRole = profileInfo.role;
@@ -286,9 +313,26 @@ async function handleAuthState(session) {
             const roleFormatted = window.currentUserRole.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
             userRole.textContent = roleFormatted;
         }
+        
+        let schoolName = '';
         if (userSchool) {
-            userSchool.style.display = 'none';
+            if (window.App && window.App.school && window.App.school.schoolName) {
+                schoolName = window.App.school.schoolName;
+                userSchool.textContent = schoolName;
+                userSchool.style.display = '';
+            } else {
+                userSchool.style.display = 'none';
+            }
         }
+
+        // Persist profile data to localStorage so banner can be pre-filled on next refresh instantly
+        localStorage.setItem('cachedProfile', JSON.stringify({
+            name: displayName,
+            email: session.user.email,
+            avatar: avatarUrl,
+            role: window.currentUserRole,
+            school: schoolName
+        }));
         
         if (meta.subject) {
             localStorage.setItem('userSubject', meta.subject);
@@ -297,18 +341,7 @@ async function handleAuthState(session) {
             if (!localSubj) localStorage.removeItem('userSubject');
         }
         
-        // Render Google Profile Avatar if available
-        const avatarEl = document.getElementById('headerUserAvatar');
-        if (avatarEl) {
-            const avatarUrl = meta.avatar_url || meta.picture || '';
-            if (avatarUrl) {
-                avatarEl.src = avatarUrl;
-                avatarEl.style.display = 'block';
-            } else {
-                avatarEl.src = '';
-                avatarEl.style.display = 'none';
-            }
-        }
+        // (Avatar is already set above — no duplicate block needed)
         
         if (session.user.email) {
             localStorage.setItem('lastLoggedInEmail', session.user.email);

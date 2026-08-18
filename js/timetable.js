@@ -23,7 +23,7 @@ async function fetchTodayTimetable(dateStr) {
             .eq('day_of_week', dayOfWeek);
 
         if (error) {
-            console.warn('Error fetching timetable:', error);
+            // console.warn('Error fetching timetable:', error);
             return {};
         }
 
