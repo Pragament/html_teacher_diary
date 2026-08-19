@@ -1,9 +1,11 @@
-const CACHE_NAME = 'teacher-diary-v32';
+const CACHE_NAME = 'teacher-diary-v35';
 const ASSETS = [
     './',
     './index.html',
     './dashboard.html',
+    './slow_learner.html',
     './css/styles.css',
+    './css/slow_learner.css',
     './js/app.js',
     './js/ui.js',
     './js/data.js',
