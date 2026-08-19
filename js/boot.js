@@ -52,13 +52,9 @@ window.App = {
         // Verify with remote json
         await verifyAndConnectSchool(storedSchool.schoolCode);
     } else {
-        // Check if we are on dashboard without a school, if so, redirect to index
-        if (window.location.pathname.endsWith('dashboard.html')) {
-             window.location.href = 'index.html';
-             return;
-        }
-        // Dispatch appReady so the landing page can finish loading normally
-        window.dispatchEvent(new CustomEvent('appReady', { detail: null }));
+        // Default to DPSS school or offline mode so dashboard is immediately accessible
+        localStorage.setItem('offlineMode', 'true');
+        window.dispatchEvent(new CustomEvent('appReady', { detail: { mode: 'offline' } }));
     }
 })();
 

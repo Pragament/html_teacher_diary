@@ -366,9 +366,9 @@ async function handleAuthState(session) {
             dailyTabButton.click();
         }
     } else {
-        if (isDashboard && !isBypassedAuth) {
-            window.location.href = 'index.html';
-            return;
+        const isOffline = localStorage.getItem('offlineMode') === 'true';
+        if (isDashboard && !isBypassedAuth && !isOffline) {
+            localStorage.setItem('offlineMode', 'true');
         }
 
         localStorage.removeItem('userSubject');

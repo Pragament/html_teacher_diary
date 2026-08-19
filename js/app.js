@@ -19,6 +19,10 @@ function setupTabs() {
             // render content
             if (tab === 'daily') renderDailyTab();
             if (tab === 'view') renderViewTab();
+            if (tab === 'slow-learner') {
+                if (typeof renderSlowLearnerTab === 'function') renderSlowLearnerTab();
+                if (typeof openSlowLearnerModal === 'function') openSlowLearnerModal();
+            }
             if (tab === 'settings') loadSettingsUI();
             if (tab === 'principal' && typeof renderPrincipalDashboard === 'function') renderPrincipalDashboard();
         });
@@ -134,6 +138,7 @@ function init() {
     // initial render
     renderDailyTab();
     renderViewTab();
+    if (typeof renderSlowLearnerTab === 'function') renderSlowLearnerTab();
     loadSettingsUI();
     updateBadge();
 
@@ -174,3 +179,4 @@ window.loadCurriculumCSV = loadCurriculumCSV;
 window.seedDatabaseCurriculum = seedDatabaseCurriculum;
 window.showFetchConfigModal = showFetchConfigModal;
 window.hideFetchConfigModal = hideFetchConfigModal;
+window.openSlowLearnerModal = openSlowLearnerModal;

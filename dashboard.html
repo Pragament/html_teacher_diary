@@ -14,8 +14,11 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW registered!', reg))
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let reg of registrations) reg.update();
+                });
+                navigator.serviceWorker.register('./sw.js?v=30')
+                    .then(reg => reg.update())
                     .catch(err => console.error('SW registration failed', err));
             });
         }
@@ -114,6 +117,7 @@
                     <div class="flex-row gap-8">
                         <input type="date" id="dailyDate" style="width:auto;padding:8px 12px;" />
                         <button class="btn btn-outline btn-sm" id="copyPrevBtn">📋 Copy from previous</button>
+                        <button class="btn btn-primary btn-sm" id="slowLearnerHeaderBtn" onclick="if(typeof openSlowLearnerModal==='function'){openSlowLearnerModal();}else{alert('Opening Slow Learner Editor...');}" style="background:#6366f1; border-color:#6366f1; font-weight:600; cursor:pointer;">🌱 Slow Learner Progress</button>
                     </div>
                 </div>
                 <div id="dailyControls" class="daily-controls mt-12"></div>
@@ -178,6 +182,70 @@
                     </div>
                 </div>
                 <div id="viewResults"></div>
+            </div>
+        </section>
+
+        <!-- ====== TAB: SLOW LEARNER ====== -->
+        <section class="tab-content" id="tab-slow-learner">
+            <div class="card sl-card-container">
+                <!-- PRINT HEADER (matching sheet) -->
+                <div class="sl-sheet-header">
+                    <div class="sl-school-title">DELHI SECONDARY SCHOOL</div>
+                    <div class="sl-sheet-title">SLOW LEARNER PROGRESS MONITORING</div>
+                </div>
+
+                <!-- CONTROLS & FILTERS -->
+                <div class="sl-controls flex-between flex-wrap gap-12 no-print" style="margin-bottom: 20px;">
+                    <div class="flex-row flex-wrap gap-8" style="flex:1;">
+                        <div class="search-box" style="max-width: 280px; flex: 1;">
+                            <span class="search-icon">🔎</span>
+                            <input type="text" id="slSearchInput" placeholder="Search student, gap, strategy…" oninput="renderSlowLearnerTab()" />
+                        </div>
+                        <select id="slSubjectFilter" style="padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main);" onchange="renderSlowLearnerTab()">
+                            <option value="">All Subjects</option>
+                            <option value="Maths">Maths</option>
+                            <option value="English">English</option>
+                            <option value="Science">Science</option>
+                            <option value="Social Studies">Social Studies</option>
+                            <option value="Hindi">Hindi</option>
+                        </select>
+                        <select id="slProgressFilter" style="padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main);" onchange="renderSlowLearnerTab()">
+                            <option value="">All Progress Levels</option>
+                            <option value="Improving">Improving</option>
+                            <option value="Satisfactory">Satisfactory</option>
+                            <option value="Little Improvement">Little Improvement</option>
+                            <option value="Needs Attention">Needs Attention</option>
+                        </select>
+                    </div>
+
+                    <div class="flex-row gap-8 flex-wrap">
+                        <button class="btn btn-primary btn-sm" onclick="openAddSlowLearnerModal()">➕ Add Record</button>
+                        <button class="btn btn-outline btn-sm" onclick="exportSlowLearnerCSV()">📤 Export CSV</button>
+                        <button class="btn btn-outline btn-sm" onclick="printSlowLearnerSheet()">🖨️ Print Sheet</button>
+                        <button class="btn btn-outline btn-sm text-muted" onclick="resetSlowLearnerDefaults()" title="Reset data to default sample items">↺ Reset Defaults</button>
+                    </div>
+                </div>
+
+                <!-- TABLE VIEW -->
+                <div class="sl-table-wrapper">
+                    <table class="sl-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 100px;">Date</th>
+                                <th style="width: 150px;">Student Name</th>
+                                <th style="width: 100px;">Subject</th>
+                                <th>Learning Gap</th>
+                                <th>Strategy/Method Used</th>
+                                <th style="width: 140px;">Progress</th>
+                                <th>Next Step</th>
+                                <th class="no-print" style="width: 80px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="slowLearnerTableBody">
+                            <!-- Injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -488,7 +556,73 @@
     <script src="js/admin.js?v=7.2"></script>
     <script src="js/principal.js?v=1.0"></script>
     <script src="js/notifications.js?v=1.0"></script>
+    <script src="js/slow_learner.js?v=1.0"></script>
     <script src="js/app.js?v=7.2"></script>
+
+    <!-- ====== SLOW LEARNER EDIT MODAL (POPUP DIALOG MATCHING SCREENSHOT) ====== -->
+    <div id="slow-learner-modal" class="sl-modal-overlay" style="display:none;">
+        <div class="sl-modal-container">
+            <!-- Header -->
+            <div class="sl-modal-header">
+                <button class="sl-modal-close" onclick="closeSlowLearnerModal()">&times;</button>
+                <div class="sl-modal-school">DELHI SECONDARY SCHOOL</div>
+                <h2 class="sl-modal-heading">SLOW LEARNER PROGRESS MONITORING</h2>
+                <div class="sl-modal-subdate" id="slModalDateSubtitle">Date: Tue, Aug 18, 2026 — Progress Monitoring Record</div>
+            </div>
+
+            <!-- Top Action Bar -->
+            <div class="sl-modal-topbar">
+                <div class="sl-date-input-wrap">
+                    <label for="slHeaderDateInput">Date:</label>
+                    <input type="date" id="slHeaderDateInput" onchange="updateSlDateSubtitle()" />
+                </div>
+                <button type="button" class="btn-sl-add-row" onclick="addSlowLearnerRow()">
+                    <span>+</span> Add Student Row
+                </button>
+            </div>
+
+            <!-- Table Body Container -->
+            <div class="sl-modal-table-wrap">
+                <table class="sl-modal-editor-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 130px;">DATE</th>
+                            <th style="width: 150px;">STUDENT NAME</th>
+                            <th style="width: 110px;">SUBJECT</th>
+                            <th style="width: 220px;">LEARNING GAP</th>
+                            <th style="width: 220px;">STRATEGY/METHOD USED</th>
+                            <th style="width: 150px;">PROGRESS</th>
+                            <th style="width: 220px;">NEXT STEP</th>
+                            <th style="width: 60px; text-align: center;">DELETE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slModalRowsContainer">
+                        <!-- Dynamic rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Bar -->
+            <div class="sl-modal-footer">
+                <div class="sl-footer-left">
+                    <button type="button" class="btn-sl-footer btn-sl-csv" onclick="exportSlowLearnerCSV()">
+                        <span>📥</span> Export CSV
+                    </button>
+                    <button type="button" class="btn-sl-footer btn-sl-clear" onclick="clearAllSlowLearnerRows()">
+                        <span>✏️</span> Clear All Rows
+                    </button>
+                </div>
+                <div class="sl-footer-right">
+                    <button type="button" class="btn-sl-footer btn-sl-cancel" onclick="closeSlowLearnerModal()">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn-sl-footer btn-sl-save" onclick="saveAllSlowLearnerRows()">
+                        <span>💾</span> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ====== TEACHER ANALYTICS MODAL ====== -->
     <div id="teacher-analytics-modal" class="review-modal-overlay" style="display:none;">

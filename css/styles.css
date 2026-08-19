@@ -3472,3 +3472,410 @@ body.dark .view-mode-switcher .view-btn:hover {
 .status-empty { background-color: #cbd5e1; } /* Slate 300 */
 .status-progress { background-color: #facc15; } /* Yellow 400 */
 .status-complete { background-color: #22c55e; } /* Green 500 */
+
+/* ================================================================
+   SLOW LEARNER POPUP MODAL (EXACT SCREENSHOT REPLICA)
+   ================================================================ */
+.sl-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #090e1a;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.sl-modal-container {
+    background: #090e1a;
+    border: none;
+    border-radius: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: none;
+    overflow: hidden;
+    color: #f8fafc;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.sl-modal-header {
+    text-align: center;
+    padding: 28px 24px 18px 24px;
+    position: relative;
+    background: #090e1a;
+    border-bottom: 1px solid #1a2336;
+}
+
+.sl-modal-close {
+    position: absolute;
+    right: 24px;
+    top: 24px;
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.sl-modal-close:hover {
+    color: #f8fafc;
+}
+
+.sl-modal-school {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #818cf8;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.sl-modal-heading {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+    text-transform: uppercase;
+}
+
+.sl-modal-subdate {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+.sl-modal-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: #0b1324;
+    border-bottom: 1px solid #1a2336;
+}
+
+.sl-date-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.sl-date-input-wrap input[type="date"] {
+    background: #111827;
+    border: 1px solid #28364d;
+    color: #f8fafc;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+}
+
+.btn-sl-add-row {
+    background: #111728;
+    border: 1px solid #4f46e5;
+    color: #a5b4fc;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+.btn-sl-add-row:hover {
+    background: #4f46e5;
+    color: #ffffff;
+}
+
+.sl-modal-table-wrap {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    background: #070b14;
+    padding: 0;
+}
+
+.sl-modal-editor-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    text-align: left;
+}
+
+.sl-modal-editor-table th {
+    background: #0b1324;
+    color: #38bdf8;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #1a2336;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    text-transform: uppercase;
+}
+
+.sl-modal-editor-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #162032;
+    vertical-align: top;
+}
+
+.sl-input {
+    width: 100%;
+    background: #0d1527;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    color: #f8fafc;
+    padding: 8px 12px;
+    font-size: 13px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, background-color 0.2s;
+    font-family: inherit;
+}
+.sl-input:focus {
+    border-color: #6366f1;
+    background: #111827;
+    outline: none;
+}
+
+.sl-input::placeholder {
+    color: #475569;
+}
+
+textarea.sl-input {
+    resize: vertical;
+    min-height: 52px;
+    line-height: 1.4;
+}
+
+select.sl-input {
+    appearance: auto;
+    cursor: pointer;
+}
+
+.btn-sl-delete {
+    background: #131b2e;
+    border: 1px solid #1e293b;
+    color: #94a3b8;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 15px;
+}
+.btn-sl-delete:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #dc2626;
+}
+
+.sl-modal-footer {
+    background: #ffffff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #e2e8f0;
+}
+
+.sl-footer-left, .sl-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-sl-footer {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-sl-csv {
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+.btn-sl-csv:hover {
+    background: #e2e8f0;
+}
+
+.btn-sl-clear {
+    background: #fff1f2;
+    color: #e11d48;
+    border: 1px solid #fecdd3;
+    border-radius: 20px;
+}
+.btn-sl-clear:hover {
+    background: #ffe4e6;
+}
+
+.btn-sl-cancel {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+.btn-sl-cancel:hover {
+    background: #f1f5f9;
+}
+
+.btn-sl-save {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+.btn-sl-save:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+}
+
+/* ---------- SLOW LEARNER STATIC TAB TABLE ---------- */
+.sl-card-container {
+    padding: 24px;
+}
+
+.sl-sheet-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+}
+.sl-school-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-main);
+}
+.sl-sheet-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+
+.sl-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    margin-top: 16px;
+}
+
+.sl-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+    background: var(--bg-card);
+}
+
+.sl-table th, 
+.sl-table td {
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.sl-table th {
+    background: var(--primary-light);
+    color: var(--primary);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.sl-table tr:nth-child(even) {
+    background: rgba(0,0,0,0.02);
+}
+
+.sl-subject-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.sl-progress-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.badge-improving {
+    background: #dcfce7;
+    color: #15803d;
+}
+.badge-satisfactory {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+.badge-little {
+    background: #fef3c7;
+    color: #b45309;
+}
+.badge-attention {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+body.dark .badge-improving {
+    background: #064e3b;
+    color: #86efac;
+}
+body.dark .badge-satisfactory {
+    background: #075985;
+    color: #7dd3fc;
+}
+body.dark .badge-little {
+    background: #78350f;
+    color: #fde68a;
+}
+body.dark .badge-attention {
+    background: #7f1d1d;
+    color: #fca5a5;
+}
+
+.sl-actions-cell {
+    white-space: nowrap;
+    text-align: center;
+}
+
+
