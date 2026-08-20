@@ -1,15 +1,18 @@
-const CACHE_NAME = 'teacher-diary-v20';
+const CACHE_NAME = 'teacher-diary-v40';
 const ASSETS = [
     './',
     './index.html',
     './dashboard.html',
+    './slow_learner.html',
     './css/styles.css',
+    './css/slow_learner.css',
     './js/app.js',
     './js/ui.js',
     './js/data.js',
     './js/auth.js',
     './js/supabase.js',
-    './js/file-upload.js'
+    './js/file-upload.js',
+    './js/slow_learner.js'
 ];
 
 self.addEventListener('install', event => {
