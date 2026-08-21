@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🌱 Slow Learner Progress Monitoring</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/slow_learner.css?v=1.0" />
+</head>
+
+<body>
+    <div class="sl-standalone-page">
+        <!-- Header -->
+        <div class="sl-modal-header">
+            <a href="dashboard.html" class="sl-header-back-btn">
+                <span>←</span> Back to Dashboard
+            </a>
+            <button class="sl-modal-close" onclick="window.location.href='dashboard.html'" title="Close">&times;</button>
+            <div class="sl-modal-school">DELHI SECONDARY SCHOOL</div>
+            <h2 class="sl-modal-heading">SLOW LEARNER PROGRESS MONITORING</h2>
+            <div class="sl-modal-subdate" id="slModalDateSubtitle">Date: Tue, Aug 18, 2026 — Progress Monitoring Record</div>
+        </div>
+
+        <!-- Top Action Bar -->
+        <div class="sl-modal-topbar">
+            <div class="sl-date-input-wrap">
+                <label for="slHeaderDateInput">Date:</label>
+                <input type="date" id="slHeaderDateInput" onchange="updateSlDateSubtitle()" />
+            </div>
+            <button type="button" class="btn-sl-add-row" onclick="addSlowLearnerRow()">
+                <span>+</span> Add Student Row
+            </button>
+        </div>
+
+        <!-- Table Body Container -->
+        <div class="sl-modal-table-wrap">
+            <table class="sl-modal-editor-table">
+                <thead>
+                    <tr>
+                        <th style="width: 140px;">DATE</th>
+                        <th style="width: 180px;">STUDENT NAME</th>
+                        <th style="width: 140px;">SUBJECT</th>
+                        <th style="width: 250px;">LEARNING GAP</th>
+                        <th style="width: 250px;">STRATEGY/METHOD USED</th>
+                        <th style="width: 160px;">PROGRESS</th>
+                        <th style="width: 250px;">NEXT STEP</th>
+                        <th style="width: 70px; text-align: center;">DELETE</th>
+                    </tr>
+                </thead>
+                <tbody id="slModalRowsContainer">
+                    <!-- Dynamic rows injected via JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="sl-modal-footer">
+            <div class="sl-footer-left">
+                <button type="button" class="btn-sl-footer btn-sl-csv" onclick="exportSlowLearnerCSV()">
+                    <span>📥</span> Export CSV
+                </button>
+                <button type="button" class="btn-sl-footer btn-sl-clear" onclick="clearAllSlowLearnerRows()">
+                    <span>✏️</span> Clear All Rows
+                </button>
+            </div>
+            <div class="sl-footer-right">
+                <button type="button" class="btn-sl-footer btn-sl-cancel" onclick="window.location.href='dashboard.html'">
+                    Cancel
+                </button>
+                <button type="button" class="btn-sl-footer btn-sl-save" onclick="saveAllSlowLearnerRows(true)">
+                    <span>💾</span> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/data.js?v=8.2"></script>
+    <script src="js/toast.js?v=8.2"></script>
+    <script src="js/csv.js?v=8.2"></script>
+    <script src="js/slow_learner.js?v=8.2"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dateInput = document.getElementById('slHeaderDateInput');
+            if (dateInput) {
+                dateInput.value = '2026-08-18';
+                updateSlDateSubtitle();
+            }
+            const entries = getSlowLearnerEntries();
+            renderModalRows(entries);
+        });
+    </script>
+</body>
+
+</html>
