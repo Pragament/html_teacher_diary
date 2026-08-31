@@ -32,8 +32,11 @@ window.App = {
             } catch (e) { /* ignore */ }
         }
         // No school stored but we have an OAuth callback: 
-        // dispatch appReady anyway so auth listener can handle the token
-        window.dispatchEvent(new CustomEvent('appReady', { detail: { mode: 'oauth-callback' } }));
+        // we can't consume the token without knowing the school's supabase URL.
+        // Redirect back to index.html to start over.
+        if (window.location.pathname.endsWith('dashboard.html')) {
+            window.location.href = 'index.html';
+        }
         return;
     }
 

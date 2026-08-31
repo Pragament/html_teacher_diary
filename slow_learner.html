@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/slow_learner.css?v=1.0" />
+    <link rel="stylesheet" href="css/slow_learner.css?v=2.0" />
 </head>
 
 <body>
@@ -42,7 +42,9 @@
                 <thead>
                     <tr>
                         <th style="width: 140px;">DATE</th>
-                        <th style="width: 180px;">STUDENT NAME</th>
+                        <th style="width: 80px;">CLASS</th>
+                        <th style="width: 80px;">SEC</th>
+                        <th style="width: 250px;">STUDENT NAME</th>
                         <th style="width: 140px;">SUBJECT</th>
                         <th style="width: 250px;">LEARNING GAP</th>
                         <th style="width: 250px;">STRATEGY/METHOD USED</th>
@@ -79,12 +81,12 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/data.js?v=8.2"></script>
-    <script src="js/toast.js?v=8.2"></script>
-    <script src="js/csv.js?v=8.2"></script>
-    <script src="js/slow_learner.js?v=8.2"></script>
+    <script src="js/data.js?v=9.2"></script>
+    <script src="js/toast.js?v=9.2"></script>
+    <script src="js/csv.js?v=9.3"></script>
+    <script src="js/slow_learner.js?v=9.2"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const dateInput = document.getElementById('slHeaderDateInput');
             if (dateInput) {
                 dateInput.value = '2026-08-18';
@@ -92,6 +94,13 @@
             }
             const entries = getSlowLearnerEntries();
             renderModalRows(entries);
+            if (typeof loadTestStudents === 'function') {
+                try {
+                    await loadTestStudents();
+                } catch (error) {
+                    console.error(error);
+                }
+            }
         });
     </script>
 </body>
