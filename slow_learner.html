@@ -13,6 +13,8 @@
 </head>
 
 <body>
+    <!-- ====== TOAST CONTAINER ====== -->
+    <div id="toast-container"></div>
     <div class="sl-standalone-page">
         <!-- Header -->
         <div class="sl-modal-header">
@@ -81,18 +83,22 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/boot.js"></script>
     <script src="js/data.js?v=9.2"></script>
     <script src="js/toast.js?v=9.2"></script>
+    <script src="js/supabase.js?v=9.2"></script>
+    <script src="js/auth.js?v=9.2"></script>
     <script src="js/csv.js?v=9.3"></script>
     <script src="js/slow_learner.js?v=9.2"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             const dateInput = document.getElementById('slHeaderDateInput');
             if (dateInput) {
-                dateInput.value = '2026-08-18';
+                dateInput.value = window.getTodayStr ? window.getTodayStr() : '2026-08-18';
                 updateSlDateSubtitle();
             }
-            const entries = getSlowLearnerEntries();
+            const entries = await getSlowLearnerEntries();
             renderModalRows(entries);
             if (typeof loadTestStudents === 'function') {
                 try {
