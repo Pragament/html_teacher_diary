@@ -73,9 +73,9 @@ async function handleAuthSubmit(event) {
         if (currentAuthTab === 'login') {
             const { data, error } = await client.auth.signInWithPassword({ email, password });
             if (error) throw error;
-            handleAuthState(data.session);
             localStorage.setItem('lastLoggedInEmail', email);
             showToast('Welcome back! Successfully signed in.', 'success');
+            setTimeout(() => window.location.reload(), 500);
         } else {
             const name = document.getElementById('auth-name').value.trim();
             const subject = document.getElementById('auth-subject').value.trim();
@@ -93,8 +93,8 @@ async function handleAuthSubmit(event) {
             const { data, error } = await client.auth.signUp(signUpOptions);
             if (error) throw error;
             if (data.session) {
-                handleAuthState(data.session);
                 showToast('🎉 Registration successful! Welcome to Teacher Planner.', 'success');
+                setTimeout(() => window.location.reload(), 500);
             } else {
                 showToast('📧 Verification email sent! Please check your inbox and verify your email before logging in.', 'info', 8000);
                 switchAuthTab('login');
@@ -162,6 +162,7 @@ async function handleSignOut() {
     localStorage.removeItem('offlineMode');
     localStorage.removeItem('userRole');
     localStorage.removeItem('lastLoggedInEmail');
+    localStorage.removeItem('cachedProfile');
     window.location.href = 'index.html';
 }
 
@@ -191,7 +192,9 @@ async function setupAuthListener() {
             }
 
             const settings = getSettings();
-            const configKey = (settings.supabaseUrl || '') + '|' + (settings.supabaseKey || '');
+            const configKey = (window.App && window.App.school && window.App.school.schoolCode) 
+                ? window.App.school.schoolCode 
+                : (settings.supabaseUrl || '') + '|' + (settings.supabaseKey || '');
             if (!authListenerBound || currentBoundClientConfig !== configKey) {
                 client.auth.onAuthStateChange((event, session) => {
                     // Ignore null-session events that fire before the initial check resolves
@@ -221,7 +224,7 @@ async function upsertUserProfileAndFetchRole(session) {
     
     const meta = session.user.user_metadata || {};
     const email = session.user.email;
-    const name = meta.full_name || '';
+    const name = meta.full_name || meta.name || '';
     const avatarUrl = meta.avatar_url || meta.picture || '';
 
     try {
@@ -263,6 +266,7 @@ async function upsertUserProfileAndFetchRole(session) {
         }
     } catch (err) {
         console.warn('Error upserting user profile:', err);
+        showToast('Warning: Could not save profile or role. You may have limited access.', 'warning');
         return { role: 'teacher' };
     }
 }
@@ -290,9 +294,10 @@ async function handleAuthState(session) {
         if (userBanner) userBanner.classList.remove('hidden');
         
         const meta = session.user.user_metadata || {};
-        let displayName = meta.full_name || session.user.email;
+        let displayName = meta.full_name || meta.name || session.user.email;
         if (userName) userName.textContent = displayName;
         if (userEmail) userEmail.textContent = session.user.email;
+        showToast('Debug: Auth state loaded. Name: ' + displayName, 'info');
         
         // Resolve avatar URL, falling back to a generated initials avatar
         let avatarUrl = meta.avatar_url || meta.picture || '';

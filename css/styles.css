@@ -3288,33 +3288,34 @@ body.dark .view-mode-switcher .view-btn:hover {
 /* View Behaviors */
 
 /* 1. Cards Mode (Default) */
-.view-cards .period-card { display: flex; transition: all 0.2s; }
-.view-cards .period-card-header { cursor: pointer; }
-.view-cards .period-body { display: block; }
+.view-cards .period-card { display: flex; flex-direction: column; transition: all 0.2s; }
+.view-cards .period-row-contents { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.view-cards .period-card-header { cursor: pointer; display: flex; align-items: center; }
+.view-cards .period-body { display: block; width: 100%; margin-top: 8px; }
 .view-cards .period-card.collapsed .period-body { display: none; }
+.view-cards .period-meta { display: flex; gap: 8px; align-items: center; }
 .view-cards .compact-chevron { transition: transform 0.2s; }
 .view-cards .period-card.collapsed .compact-chevron { transform: rotate(-90deg); }
 
 /* 2. Compact Mode (Accordion) */
-.view-compact .period-card { display: flex; }
-.view-compact .period-card-header { cursor: pointer; }
-.view-compact .period-body { display: none; }
+.view-compact .period-card { display: block; }
+.view-compact .period-row-contents { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.view-compact .period-card-header { cursor: pointer; display: flex; align-items: center; }
+.view-compact .period-meta { display: flex; gap: 8px; align-items: center; }
+.view-compact .period-body { display: none; width: 100%; margin-top: 8px; }
 .view-compact .period-card.active .period-body { display: block; }
 .view-compact .period-card .compact-chevron { transition: transform 0.2s; }
 .view-compact .period-card.active .compact-chevron { transform: rotate(180deg); }
+.view-compact .period-card:not(.active) .period-meta,
+.view-compact .period-card:not(.active) .period-input-wrapper { display: none !important; }
+.view-compact .period-card:not(.active) .compact-summary { display: inline-block !important; }
 
 /* 3. Focus Mode */
-.view-focus .period-card { 
-    display: none; 
-    opacity: 0;
-    transform: translateX(15px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.view-focus .period-card.focused { 
-    display: flex; 
-    opacity: 1;
-    transform: translateX(0);
-}
+.view-focus .period-card { display: none; opacity: 0; transform: translateX(15px); transition: opacity 0.2s ease, transform 0.2s ease; }
+.view-focus .period-card.focused { display: flex; flex-direction: column; opacity: 1; transform: translateX(0); }
+.view-focus .period-row-contents { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.view-focus .period-meta { display: flex; gap: 8px; align-items: center; }
+.view-focus .period-body { display: block; width: 100%; margin-top: 8px; }
 .view-focus .compact-chevron { display: none; }
 .view-focus .period-card-header { cursor: default !important; }
 
@@ -3347,6 +3348,10 @@ body.dark .view-mode-switcher .view-btn:hover {
 .view-grid #periodCards {
     display: block;
     min-width: 1000px;
+}
+
+.grid-header {
+    display: none;
 }
 
 .view-grid .grid-header {
