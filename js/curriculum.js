@@ -143,10 +143,5 @@ async function fetchCurriculumTagsAPI(subject = '') {
 //  SEED DATABASE (kept for backward compat, now uses API data)
 // ================================================================
 async function seedDatabaseCurriculum() {
-    const settings = getSettings();
-    if (!settings.supabaseUrl || !settings.supabaseKey) {
-        showToast('❌ Supabase credentials required! Please enter both Supabase URL and API Key in settings.', 'error');
-        return;
-    }
     showToast('ℹ️ Content is now managed via the database. Use Supabase SQL Editor to add new curriculum data.', 'info');
 }

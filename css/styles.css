@@ -3477,3 +3477,21 @@ body.dark .view-mode-switcher .view-btn:hover {
 .status-empty { background-color: #cbd5e1; } /* Slate 300 */
 .status-progress { background-color: #facc15; } /* Yellow 400 */
 .status-complete { background-color: #22c55e; } /* Green 500 */
+
+/* Authentication Styles & UI fixes */
+#toast-container {
+    z-index: 10000;
+}
+.auth-alert.error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.auth-alert.success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.auth-school-subtitle a:hover {
+    text-decoration: underline;
+}

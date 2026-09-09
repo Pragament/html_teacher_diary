@@ -26,13 +26,12 @@ function clearApiCache() {
 //  SUPABASE REST QUERY HELPER
 // ================================================================
 async function supabaseGet(path) {
-    const settings = getSettings();
-    let url = (settings.supabaseUrl || '').trim();
-    const key = (settings.supabaseKey || '').trim();
-
-    if (!url || !key) {
-        throw new Error('Supabase not configured. Go to Settings and enter your URL and API Key.');
+    const client = window.App?.supabase;
+    if (!client) {
+        throw new Error('Supabase not configured. Connect to a school first.');
     }
+    let url = client.supabaseUrl || '';
+    const key = client.supabaseKey || '';
 
     if (url.endsWith('/')) url = url.slice(0, -1);
     if (url.endsWith('/rest/v1')) url = url.slice(0, -8);
@@ -394,7 +393,7 @@ async function apiFetchSupabaseConfig(uuid, pin) {
         if (!supabaseUrl || !supabaseAnonKey) {
             // Log missing required fields precisely
             const missing = [];
-            if (!supabaseUrl) missing.push('supabaseUrl');
+        if (!supabaseUrl) missing.push('supabaseUrl');
             if (!supabaseAnonKey) missing.push('supabaseAnonKey');
             
             console.error('Missing Required Fields:', JSON.stringify(missing));
