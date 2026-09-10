@@ -136,6 +136,12 @@ async function verifyAndConnectSchool(code) {
             } 
         }));
 
+        // Update the school name in the Auth Overlay
+        const authSchoolName = document.getElementById('auth-school-name');
+        if (authSchoolName) {
+            authSchoolName.textContent = schoolConfig.schoolName;
+        }
+
         if (window._pendingAuthTab) {
             const authOverlay = document.getElementById('auth-overlay');
             if (authOverlay) authOverlay.classList.add('active');
@@ -175,31 +181,47 @@ window.handleSchoolCodeSubmit = function(event) {
     verifyAndConnectSchool(code);
 };
 
-window.changeSchool = function() {
-    localStorage.removeItem('teacherDiary.school');
-    // Also clear supabase auth tokens by signing out if possible, but simplest is to clear localstorage completely for supabase?
-    // Let's just clear school and auth state then reload
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('lastLoggedInEmail');
-    
-    // Attempt to sign out of supabase if possible before reloading
+window.changeSchool = async function() {
     if (window.App && window.App.supabase) {
-        window.App.supabase.auth.signOut().then(() => {
-            window.location.reload();
-        }).catch(() => {
-            window.location.reload();
-        });
-    } else {
-        window.location.reload();
+        try {
+            await window.App.supabase.auth.signOut();
+        } catch (e) {
+            console.warn("Error signing out during changeSchool", e);
+        }
     }
+
+    localStorage.removeItem('teacherDiary.school');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('cachedProfile');
+    localStorage.removeItem('offlineMode');
+    localStorage.removeItem('demoUser');
+    localStorage.removeItem('teacherDiary.cache');
+    localStorage.removeItem('teacherDiary.activities');
+    localStorage.removeItem('teacherDiary.timetable');
+
+    window.location.href = 'index.html';
 };
 
-window.openLoginFlow = function(tab) {
-    if (window.App && window.App.school && window.App.school.schoolCode) {
+window.openLoginFlow = async function(tab = 'login') {
+    const schoolDataRaw = localStorage.getItem('teacherDiary.school');
+    if (!schoolDataRaw) {
+        window._pendingAuthTab = tab;
+        const schoolOverlay = document.getElementById('school-code-overlay');
+        if (schoolOverlay) schoolOverlay.classList.add('active');
+        return;
+    }
+
+    try {
+        const school = JSON.parse(schoolDataRaw);
+        window._pendingAuthTab = tab;
+        await verifyAndConnectSchool(school.schoolCode);
         const authOverlay = document.getElementById('auth-overlay');
-        if (authOverlay) authOverlay.classList.add('active');
-        if (typeof window.switchAuthTab === 'function') window.switchAuthTab(tab);
-    } else {
+        if (authOverlay && window.App.supabase) {
+            authOverlay.classList.add('active');
+            if (typeof window.switchAuthTab === 'function') window.switchAuthTab(tab);
+        }
+    } catch (error) {
+        localStorage.removeItem('teacherDiary.school');
         window._pendingAuthTab = tab;
         const schoolOverlay = document.getElementById('school-code-overlay');
         if (schoolOverlay) schoolOverlay.classList.add('active');
