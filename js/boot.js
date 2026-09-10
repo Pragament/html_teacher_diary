@@ -3,12 +3,30 @@ window.App = {
     school: null
 };
 
-(async function boot() {
+window.isAppReady = false;
+window.appReadyDetail = null;
+
+function triggerAppReady(detail) {
+    window.isAppReady = true;
+    window.appReadyDetail = detail;
+    window.dispatchEvent(new CustomEvent('appReady', { detail }));
+}
+
+window.onAppReady = function(callback) {
+    if (typeof callback !== 'function') return;
+    if (window.isAppReady) {
+        callback(new CustomEvent('appReady', { detail: window.appReadyDetail }));
+    } else {
+        window.addEventListener('appReady', callback);
+    }
+};
+
+async function boot() {
     const isOfflineMode = localStorage.getItem('offlineMode') === 'true';
     if (isOfflineMode) {
         // If offline mode is enabled, we skip the school connect flow
         // and just dispatch appReady so the rest of the app can load
-        window.dispatchEvent(new CustomEvent('appReady', { detail: { mode: 'offline' } }));
+        triggerAppReady({ mode: 'offline' });
         return;
     }
 
@@ -32,12 +50,16 @@ window.App = {
             } catch (e) { /* ignore */ }
         }
         // No school stored but we have an OAuth callback: 
-        // we can't consume the token without knowing the school's supabase URL.
-        // Redirect back to index.html to start over.
-        if (window.location.pathname.endsWith('dashboard.html')) {
-            window.location.href = 'index.html';
-        }
-        return;
+// dispatch already anyway so auth listener can handle the token
+triggerAppReady({ mode: 'oauth-callback' });
+
+// we can't consume the token without knowing the school's Supabase URL.
+// Redirect back to index.html to start over.
+if (window.location.pathname.endsWith('dashboard.html')) {
+    window.location.href = 'index.html';
+}
+
+return;
     }
 
     const schoolDataRaw = localStorage.getItem('teacherDiary.school');
@@ -61,9 +83,15 @@ window.App = {
              return;
         }
         // Dispatch appReady so the landing page can finish loading normally
-        window.dispatchEvent(new CustomEvent('appReady', { detail: null }));
+        triggerAppReady(null);
     }
-})();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+} else {
+    boot();
+}
 
 async function verifyAndConnectSchool(code) {
     const overlay = document.getElementById('school-code-overlay');
@@ -77,7 +105,7 @@ async function verifyAndConnectSchool(code) {
     if (errorMsg) errorMsg.style.display = 'none';
 
     try {
-        const response = await fetch('config/schools.v1.json', { cache: 'no-store' });
+        const response = await fetch('config/schools.v1.json');
         if (!response.ok) throw new Error('Failed to fetch school configuration');
         
         const schools = await response.json();
@@ -129,12 +157,10 @@ async function verifyAndConnectSchool(code) {
         if (overlay) overlay.classList.remove('active');
         
         // Notify rest of the app
-        window.dispatchEvent(new CustomEvent('appReady', { 
-            detail: { 
-                schoolCode: code, 
-                schoolName: schoolConfig.schoolName 
-            } 
-        }));
+        triggerAppReady({ 
+            schoolCode: code, 
+            schoolName: schoolConfig.schoolName 
+        });
 
         // Update the school name in the Auth Overlay
         const authSchoolName = document.getElementById('auth-school-name');

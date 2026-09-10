@@ -167,8 +167,12 @@ function init() {
     });
 }
 
-// run
-window.addEventListener('appReady', init);
+// run safely via onAppReady helper
+if (typeof window.onAppReady === 'function') {
+    window.onAppReady(init);
+} else {
+    window.addEventListener('appReady', init);
+}
 
 // expose some functions globally for inline onclick
 window.toggleDayCard = toggleDayCard;
