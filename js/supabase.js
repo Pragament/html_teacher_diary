@@ -295,3 +295,83 @@ async function saveEntryToSupabase(dateStr, periods) {
         return { ok: false, error: e.message };
     }
 }
+
+// ================================================================
+//  SLOW LEARNER PROGRESS SYNC
+// ================================================================
+
+async function syncSlowLearnerToSupabase(entries) {
+    const client = getSupabaseClient();
+    if (!client) return { ok: false, error: 'Supabase not configured' };
+
+    try {
+        const { data: { session } } = await client.auth.getSession();
+        if (!session) return { ok: false, error: 'No active session' };
+
+        const rows = entries.map(e => ({
+            id: e.id,
+            teacher_id: session.user.id,
+            date: e.date,
+            class_name: e.className || '',
+            section: e.section || '',
+            student_id: e.studentId || '',
+            student_name: e.studentName || '',
+            subject: e.subject || '',
+            learning_gap: e.learningGap || '',
+            strategy: e.strategy || '',
+            progress: e.progress || '',
+            next_step: e.nextStep || ''
+        }));
+
+        if (rows.length === 0) return { ok: true };
+
+        const { error } = await client
+            .from('slow_learner_entries')
+            .upsert(rows, { onConflict: 'id' });
+
+        if (error) return { ok: false, error: error.message };
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+async function fetchSlowLearnerFromSupabase() {
+    const client = getSupabaseClient();
+    if (!client) return { ok: false, error: 'Supabase not configured' };
+
+    try {
+        const { data: { session } } = await client.auth.getSession();
+        if (!session) return { ok: false, error: 'No active session' };
+
+        const { data, error } = await client
+            .from('slow_learner_entries')
+            .select('*')
+            .eq('teacher_id', session.user.id)
+            .order('date', { ascending: false });
+
+        if (error) return { ok: false, error: error.message };
+
+        const entries = data.map(row => ({
+            id: row.id,
+            date: row.date,
+            className: row.class_name,
+            section: row.section,
+            studentId: row.student_id,
+            studentName: row.student_name,
+            subject: row.subject,
+            learningGap: row.learning_gap,
+            strategy: row.strategy,
+            progress: row.progress,
+            nextStep: row.next_step
+        }));
+
+        return { ok: true, data: entries };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+// Expose these via window if they are needed globally, although app.js generally handles sync
+window.syncSlowLearnerToSupabase = syncSlowLearnerToSupabase;
+window.fetchSlowLearnerFromSupabase = fetchSlowLearnerFromSupabase;

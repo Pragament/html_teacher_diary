@@ -7,8 +7,9 @@
     <title>📚 Teacher's Daily Planner</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <!-- Supabase JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="css/styles.css?v=7.2" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    </script>
+    <link rel="stylesheet" href="css/styles.css?v=7.3" />
     <!-- Intro.js Stylesheet -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/introjs.min.css" />
     <script>
@@ -114,15 +115,17 @@
             <h2 class="auth-title">Fetch Supabase Config</h2>
             <p class="auth-subtitle">Enter credentials to fetch your configuration</p>
             
-            <div class="auth-form-group">
-                <label for="fetchConfigUuid">UUID (Optional)</label>
-                <input type="text" id="fetchConfigUuid" placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000" autocomplete="off" />
-            </div>
-            
-            <div class="auth-form-group">
-                <label for="fetchConfigPin">PIN (Required)</label>
-                <input type="password" id="fetchConfigPin" placeholder="Enter PIN" autocomplete="off" />
-            </div>
+            <form id="config-fetch-form" onsubmit="event.preventDefault(); document.getElementById('submitFetchConfigBtn').click();">
+                <div class="auth-form-group">
+                    <label for="fetchConfigUuid">UUID (Optional)</label>
+                    <input type="text" id="fetchConfigUuid" placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000" autocomplete="off" />
+                </div>
+                
+                <div class="auth-form-group">
+                    <label for="fetchConfigPin">PIN (Required)</label>
+                    <input type="password" id="fetchConfigPin" placeholder="Enter PIN" autocomplete="current-password" />
+                </div>
+            </form>
             
             <div style="display:flex;gap:12px;margin-top:28px;">
                 <button class="btn btn-outline" id="cancelFetchConfigBtn" style="flex:1;">Cancel</button>
@@ -137,9 +140,12 @@
     <script src="js/boot.js" defer></script>
     <script src="js/data.js?v=7.0" defer></script>
     <script src="js/toast.js?v=7.0" defer></script>
+    <script src="js/env.js" defer></script>
     <script src="js/supabase.js?v=7.0" defer></script>
     <script src="js/api.js?v=7.0" defer></script>
     <script src="js/auth.js?v=7.0" defer></script>
+
+
     <script>
         function runAuthSetup() {
             if (typeof setupAuthListener === 'function') {
@@ -158,7 +164,12 @@
         <div class="auth-card">
             <span class="auth-logo">🔐</span>
             <h2 class="auth-title">Teacher Planner Sync</h2>
-            <p class="auth-subtitle">Sign in to your Teacher Planner account</p>
+            <p class="auth-school-subtitle" style="font-size: 14px; margin-bottom: 12px; font-weight: 500;">
+                <span id="auth-school-name"></span>
+                <a href="#" onclick="changeSchool(); return false;" style="color: var(--primary-color); text-decoration: none; margin-left: 8px; font-size: 13px;">[Change School]</a>
+            </p>
+
+            <div id="auth-alert" class="auth-alert" style="display:none; margin-bottom: 16px; padding: 12px; border-radius: 6px; font-size: 14px;"></div>
 
             <div class="auth-tabs">
                 <button class="auth-tab active" id="tab-login-btn" onclick="switchAuthTab('login')">Sign In</button>
@@ -182,7 +193,7 @@
                 </div>
                 <div class="auth-form-group">
                     <label for="auth-password">Password</label>
-                    <input type="password" id="auth-password" required minlength="6" placeholder="••••••••" />
+                    <input type="password" id="auth-password" required minlength="6" placeholder="••••••••" autocomplete="current-password" />
                 </div>
                 <button type="submit" class="auth-btn-submit" id="auth-submit-btn">Sign In</button>
             </form>
@@ -201,7 +212,14 @@
                 <span>Continue with Google</span>
             </button>
 
-
+            <div class="auth-divider">
+                <span>or demo login</span>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button type="button" class="btn btn-outline" style="flex: 1; padding: 8px; font-size: 13px;" onclick="demoLogin('teacher')">Demo Teacher</button>
+                <button type="button" class="btn btn-outline" style="flex: 1; padding: 8px; font-size: 13px;" onclick="demoLogin('principal')">Demo Principal</button>
+            </div>
 
             <span class="auth-local-link" onclick="bypassAuthToLocal()"
                 title="Use offline storage locally on this device without syncing">Continue in Offline Local Mode</span>

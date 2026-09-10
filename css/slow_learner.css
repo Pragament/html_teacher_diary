@@ -324,8 +324,92 @@ select.sl-input {
 }
 .sl-modal-table-wrap::-webkit-scrollbar-thumb {
     background: #1e293b;
-    border-radius: 4px;
 }
 .sl-modal-table-wrap::-webkit-scrollbar-thumb:hover {
     background: #334155;
+}
+
+/* ---------- STUDENT SEARCH UI ---------- */
+
+.student-autocomplete-dropdown {
+    position: absolute;
+    background: var(--sl-bg-topbar);
+    border: 1px solid var(--sl-purple-primary);
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000; /* Increased to ensure it overlays everything */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    min-width: 220px;
+    padding: 4px 0;
+}
+
+.student-autocomplete-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+.student-autocomplete-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+.student-autocomplete-dropdown::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+}
+.student-autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+.autocomplete-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: #cbd5e1;
+    font-size: 13px;
+    transition: background 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.autocomplete-item:hover, .autocomplete-item.active {
+    background: rgba(99, 102, 241, 0.2);
+    color: #fff;
+}
+.autocomplete-empty {
+    padding: 12px;
+    color: #8899aa;
+    text-align: center;
+    font-size: 12px;
+}
+/* ---------- TOAST ---------- */
+#toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 400px;
+    width: 100%;
+}
+
+.toast {
+    padding: 14px 20px;
+    border-radius: 12px;
+    color: #fff;
+    font-weight: 500;
+    font-size: 14px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    animation: slideUp 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toast.success { background: #059669; }
+.toast.error { background: #dc2626; }
+.toast.info { background: #2563eb; }
+.toast.warning { background: #d97706; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }

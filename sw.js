@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teacher-diary-v42';
+const CACHE_NAME = 'teacher-diary-v55';
 const ASSETS = [
     './',
     './index.html',
@@ -70,7 +70,7 @@ self.addEventListener('fetch', event => {
     if (!url.origin.includes(location.origin)) return;
     
     event.respondWith(
-        caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
+        caches.match(event.request).then(cachedResponse => {
             if (cachedResponse) {
                 return cachedResponse;
             }

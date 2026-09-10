@@ -153,6 +153,7 @@ async function renderDailyTab() {
             ...[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${parsed.class === String(n) ? 'selected' : ''}>${n}</option>`)
         ].join('');
 
+        const summaryStr = `${parsed.class ? `${parsed.class}${parsed.section ? `-${parsed.section}` : ''} · ` : ''}${subject ? escHtml(subject) : 'No Subject'}`;
         card.innerHTML = `
           <div class="period-row-contents">
             <div style="display: flex; justify-content: center; align-items: start;">
@@ -162,18 +163,19 @@ async function renderDailyTab() {
                 <div style="display:flex; align-items:center; gap:4px; height: 32px;">
                     <span class="period-badge">P${i} <span style="opacity:0.8; font-size:11px; margin-left:4px; display:none;">(${i}/${periodsPerDay})</span></span>
                     <span class="compact-chevron" style="font-size:12px; color:var(--text-muted);">&#9660;</span>
+                    <span class="compact-summary" style="display: none; font-size: 13px; color: var(--text-muted); margin-left: 8px;">${summaryStr}</span>
                 </div>
             </div>
             <div class="period-meta" style="display:flex; gap:8px; align-items:start;" onclick="event.stopPropagation()">
                 <select class="daily-class-dropdown" data-period="${i}" data-field="class">${classDropdownOptions}</select>
             </div>
-            <div style="display:flex; align-items:start;" onclick="event.stopPropagation()">
+            <div class="period-input-wrapper" style="display:flex; align-items:start;" onclick="event.stopPropagation()">
                 <input type="text" class="daily-section-input" data-period="${i}" data-field="section" value="${escHtml(parsed.section)}" placeholder="Sec" />
             </div>
-            <div style="display:flex; align-items:start;" onclick="event.stopPropagation()">
+            <div class="period-input-wrapper" style="display:flex; align-items:start;" onclick="event.stopPropagation()">
                 <input type="text" class="daily-subject-input" data-period="${i}" data-field="subject" value="${escHtml(subject)}" placeholder="Subject" />
             </div>
-            <div class="period-body" style="display: contents;">
+            <div class="period-body">
                 <div style="display:flex; flex-direction:column; height:100%;">
                     <label style="font-size:12px; margin-top:8px; display:block;">Classwork</label>
                     <textarea class="daily-work" data-period="${i}" data-field="classwork" rows="2" placeholder="What was taught?">${escHtml(classwork)}</textarea>
@@ -188,6 +190,20 @@ async function renderDailyTab() {
             </div>
           </div>
         `;
+        
+        const updateSummary = () => {
+            const cls = card.querySelector('.daily-class-dropdown').value;
+            const sec = card.querySelector('.daily-section-input').value;
+            const sub = card.querySelector('.daily-subject-input').value;
+            const summarySpan = card.querySelector('.compact-summary');
+            if (summarySpan) {
+                summarySpan.textContent = `${cls ? `${cls}${sec ? `-${sec}` : ''} · ` : ''}${sub ? sub : 'No Subject'}`;
+            }
+        };
+        card.querySelector('.daily-class-dropdown').addEventListener('change', updateSummary);
+        card.querySelector('.daily-section-input').addEventListener('input', updateSummary);
+        card.querySelector('.daily-subject-input').addEventListener('input', updateSummary);
+        
         container.appendChild(card);
     }
     
@@ -326,6 +342,16 @@ function updateViewModeClasses() {
     if (!container) return;
     container.className = 'period-cards mt-12 view-' + window.currentViewMode;
     
+    // Robust fallback to hide/show grid header instantly even if styles.css is cached
+    const gridHeader = document.getElementById('gridHeader');
+    if (gridHeader) {
+        if (window.currentViewMode === 'grid') {
+            gridHeader.style.display = ''; // Let CSS handle 'grid'
+        } else {
+            gridHeader.style.display = 'none'; // Force hide for other views
+        }
+    }
+    
     // In focus mode, ensure at least one card is focused
     if (window.currentViewMode === 'focus') {
         setFocusPeriod(window.currentFocusedPeriod);
@@ -357,8 +383,10 @@ function setFocusPeriod(num) {
     }
 
     setTimeout(() => {
-        const activePill = document.querySelector('.status-pill.active');
-        if (activePill) activePill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        if (window.currentViewMode === 'focus') {
+            const activePill = document.querySelector('.status-pill.active');
+            if (activePill) activePill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
     }, 50);
 }
 
@@ -368,13 +396,17 @@ function renderDailyControls() {
 
     // View Switcher HTML
     const viewSwitcherHtml = `
-        <div class="view-mode-switcher" style="display: flex; gap: 4px; align-items: center; justify-content: center; flex-wrap: wrap;">
-            <button class="view-btn ${window.currentViewMode === 'cards' ? 'active' : ''}" onclick="switchViewMode('cards')">📋 Cards</button>
-            <button class="view-btn ${window.currentViewMode === 'compact' ? 'active' : ''}" onclick="switchViewMode('compact')">📑 Compact</button>
-            <button class="view-btn ${window.currentViewMode === 'grid' ? 'active' : ''}" onclick="switchViewMode('grid')">▦ Grid</button>
-            <button class="view-btn ${window.currentViewMode === 'focus' ? 'active' : ''}" onclick="switchViewMode('focus')">📱 Focus</button>
-            ${window.currentViewMode === 'focus' && window.previousViewMode === 'grid' ? `<button class="view-btn" onclick="switchViewMode('grid')" style="background:var(--primary); color:white; margin-left:8px;">← Back to Grid</button>` : ''}
-            <button class="view-btn kbd-help-btn" onclick="showKeyboardHelp()" title="Keyboard Shortcuts" style="padding: 6px 10px; margin-left: 8px;">⌨ Shortcuts</button>
+        <div style="display: flex; gap: 12px; align-items: center; width: 100%; flex-wrap: wrap;">
+            <div class="view-mode-switcher" style="display: flex; gap: 4px; align-items: center; flex: 1;">
+                <button class="view-btn ${window.currentViewMode === 'cards' ? 'active' : ''}" onclick="switchViewMode('cards')">📋 Cards</button>
+                <button class="view-btn ${window.currentViewMode === 'compact' ? 'active' : ''}" onclick="switchViewMode('compact')">📑 Compact</button>
+                <button class="view-btn ${window.currentViewMode === 'grid' ? 'active' : ''}" onclick="switchViewMode('grid')">▦ Grid</button>
+                <button class="view-btn ${window.currentViewMode === 'focus' ? 'active' : ''}" onclick="switchViewMode('focus')">📱 Focus</button>
+                ${window.currentViewMode === 'focus' && window.previousViewMode === 'grid' ? `<button class="view-btn" onclick="switchViewMode('grid')" style="background:var(--primary); color:white; margin-left:8px;">← Back to Grid</button>` : ''}
+            </div>
+            <button class="btn btn-outline" onclick="showKeyboardHelp()" title="Keyboard Shortcuts" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; color: var(--text-muted); border-color: var(--border); background: transparent; border-radius: 8px;">
+                ⌨ Shortcuts
+            </button>
         </div>
     `;
 
@@ -1391,8 +1423,8 @@ window.addEventListener('touchend', e => {
 
 function showKeyboardHelp() {
     const modalHtml = `
-        <div class="modal-overlay active" id="kbdHelpModal" onclick="this.remove()">
-            <div class="modal-content" style="max-width: 450px;" onclick="event.stopPropagation()">
+        <div class="review-modal-overlay active" id="kbdHelpModal" onclick="this.remove()">
+            <div class="review-modal" style="max-width: 450px; padding: 24px;" onclick="event.stopPropagation()">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
                     <h3 style="margin:0;">⌨ Keyboard Navigation</h3>
                     <button class="btn-icon" onclick="document.getElementById('kbdHelpModal').remove()">✕</button>

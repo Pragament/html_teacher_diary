@@ -29,6 +29,18 @@ function setupTabs() {
 //  INIT
 // ================================================================
 function init() {
+    const isDashboard = window.location.pathname.endsWith('dashboard.html');
+    if (isDashboard) {
+        const isOffline = localStorage.getItem('offlineMode') === 'true';
+        if (!isOffline) {
+            const school = localStorage.getItem('teacherDiary.school');
+            if (!school || !window.App || !window.App.supabase) {
+                window.location.href = 'index.html';
+                return;
+            }
+        }
+    }
+
     // header date
     document.getElementById('headerDate').textContent = '📅 ' + formatDate(getTodayStr());
 

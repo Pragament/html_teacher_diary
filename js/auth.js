@@ -3,11 +3,7 @@
 // ================================================================
 
 function isSupabaseConfigValid() {
-    if (window.App && window.App.supabase) return true;
-    if (!window.ENV) return false;
-    const url = window.ENV.SUPABASE_URL || '';
-    const key = window.ENV.SUPABASE_KEY || '';
-    return url.includes('.supabase.co') && (key.length > 30);
+    return !!(window.App && window.App.supabase);
 }
 
 // ================================================================
@@ -18,6 +14,19 @@ let currentAuthTab = 'login';
 let authListenerBound = false;
 let currentBoundClientConfig = '';
 let initialSessionResolved = false; // guards against premature null-session events
+
+function showAuthAlert(message, type = 'error') {
+    const alertEl = document.getElementById('auth-alert');
+    if (!alertEl) return;
+    alertEl.className = 'auth-alert ' + type;
+    alertEl.innerHTML = message;
+    alertEl.style.display = 'block';
+}
+
+function clearAuthAlert() {
+    const alertEl = document.getElementById('auth-alert');
+    if (alertEl) alertEl.style.display = 'none';
+}
 
 function switchAuthTab(tab) {
     currentAuthTab = tab;
@@ -46,6 +55,7 @@ function switchAuthTab(tab) {
         if (subjectGroup) subjectGroup.style.display = 'block';
         if (nameInput) nameInput.setAttribute('required', '');
     }
+    clearAuthAlert();
 }
 
 async function handleAuthSubmit(event) {
@@ -59,23 +69,29 @@ async function handleAuthSubmit(event) {
     submitBtn.innerHTML = '<span class="spinner"></span> Working...';
     
     try {
+        clearAuthAlert();
         if (!isSupabaseConfigValid()) {
-            showToast('⚠️ Supabase is not configured. Please set up Supabase URL and Key in Settings.', 'error');
+            showAuthAlert('⚠️ Supabase is not configured. Please set up Supabase URL and Key in Settings.');
             return;
         }
 
         const client = getSupabaseClient();
         if (!client) {
-            showToast('⚠️ Could not connect to Supabase. Please check your settings.', 'error');
+            showAuthAlert('⚠️ Could not connect to Supabase. Please check your settings.');
             return;
         }
         
         if (currentAuthTab === 'login') {
             const { data, error } = await client.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-            handleAuthState(data.session);
+            if (error) {
+                if (error.message.includes('Email not confirmed')) {
+                    showAuthAlert('Your email is not confirmed. Please check your inbox and confirm your email.', 'error');
+                    return;
+                }
+                throw error;
+            }
             localStorage.setItem('lastLoggedInEmail', email);
-            showToast('Welcome back! Successfully signed in.', 'success');
+            window.location.href = 'dashboard.html';
         } else {
             const name = document.getElementById('auth-name').value.trim();
             const subject = document.getElementById('auth-subject').value.trim();
@@ -93,18 +109,17 @@ async function handleAuthSubmit(event) {
             const { data, error } = await client.auth.signUp(signUpOptions);
             if (error) throw error;
             if (data.session) {
-                handleAuthState(data.session);
-                showToast('🎉 Registration successful! Welcome to Teacher Planner.', 'success');
+                window.location.href = 'dashboard.html';
             } else {
-                showToast('📧 Verification email sent! Please check your inbox and verify your email before logging in.', 'info', 8000);
+                showAuthAlert('📧 Verification email sent! Please check your inbox and verify your email before logging in.', 'success');
                 switchAuthTab('login');
             }
         }
     } catch (err) {
-        showToast(err.message || 'Authentication failed. Please try again.', 'error');
+        showAuthAlert(err.message || 'Authentication failed. Please try again.', 'error');
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
+        submitBtn.textContent = currentAuthTab === 'login' ? 'Sign In' : 'Register Account';
     }
 }
 
@@ -147,13 +162,31 @@ async function handleGoogleSignIn(event) {
         
         if (error) throw error;
     } catch (err) {
-        showToast(err.message || 'Google Authentication failed. Please try again.', 'error');
+        showAuthAlert(err.message || 'Google Authentication failed. Please try again.', 'error');
         googleBtn.disabled = false;
-        if (submitBtn) submitBtn.disabled = false;
         googleBtn.innerHTML = originalText;
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
+async function demoLogin(role) {
+    const demoUser = {
+        id: `demo-${role}`,
+        email: `${role}@demo.local`,
+        name: role === "principal" ? "Demo Principal" : "Demo Teacher",
+        role: role
+    };
+    localStorage.setItem("demoUser", JSON.stringify(demoUser));
+    localStorage.setItem("offlineMode", "true");
+    localStorage.setItem("cachedProfile", JSON.stringify({
+        name: demoUser.name,
+        email: demoUser.email,
+        avatar: "",
+        role: demoUser.role,
+        school: "Demo School"
+    }));
+    window.location.href = "dashboard.html";
+}
 async function handleSignOut() {
     const client = getSupabaseClient();
     if (client) {
@@ -162,6 +195,7 @@ async function handleSignOut() {
     localStorage.removeItem('offlineMode');
     localStorage.removeItem('userRole');
     localStorage.removeItem('lastLoggedInEmail');
+    localStorage.removeItem('cachedProfile');
     window.location.href = 'index.html';
 }
 
@@ -190,8 +224,7 @@ async function setupAuthListener() {
                 console.warn('Error fetching initial session:', e);
             }
 
-            const settings = getSettings();
-            const configKey = (settings.supabaseUrl || '') + '|' + (settings.supabaseKey || '');
+            const configKey = window.App && window.App.school && window.App.school.schoolCode ? window.App.school.schoolCode : 'default';
             if (!authListenerBound || currentBoundClientConfig !== configKey) {
                 client.auth.onAuthStateChange((event, session) => {
                     // Ignore null-session events that fire before the initial check resolves
@@ -221,7 +254,7 @@ async function upsertUserProfileAndFetchRole(session) {
     
     const meta = session.user.user_metadata || {};
     const email = session.user.email;
-    const name = meta.full_name || '';
+    const name = meta.full_name || meta.name || '';
     const avatarUrl = meta.avatar_url || meta.picture || '';
 
     try {
@@ -263,6 +296,7 @@ async function upsertUserProfileAndFetchRole(session) {
         }
     } catch (err) {
         console.warn('Error upserting user profile:', err);
+        showToast('Warning: Could not save profile or role. You may have limited access.', 'warning');
         return { role: 'teacher' };
     }
 }
@@ -290,7 +324,7 @@ async function handleAuthState(session) {
         if (userBanner) userBanner.classList.remove('hidden');
         
         const meta = session.user.user_metadata || {};
-        let displayName = meta.full_name || session.user.email;
+        let displayName = meta.full_name || meta.name || session.user.email;
         if (userName) userName.textContent = displayName;
         if (userEmail) userEmail.textContent = session.user.email;
         
@@ -389,8 +423,7 @@ async function handleAuthState(session) {
             avatarEl.style.display = 'none';
         }
         
-        const settings = getSettings();
-        if (settings.supabaseUrl && settings.supabaseKey && !isBypassedAuth) {
+        if (!isBypassedAuth) {
             // Do not automatically show auth overlay, let the landing page button do it
             const lastEmail = localStorage.getItem('lastLoggedInEmail');
             const emailInput = document.getElementById('auth-email');
