@@ -196,6 +196,7 @@ async function handleSignOut() {
     localStorage.removeItem('userRole');
     localStorage.removeItem('lastLoggedInEmail');
     localStorage.removeItem('cachedProfile');
+    localStorage.removeItem('demoUser');
     window.location.href = 'index.html';
 }
 

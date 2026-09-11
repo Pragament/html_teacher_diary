@@ -167,8 +167,12 @@ function init() {
     });
 }
 
-// run
+// run — also self-init if appReady already fired before this script loaded (offline mode race)
 window.addEventListener('appReady', init);
+if (window.__appReady) {
+    init();
+}
+
 
 // expose some functions globally for inline onclick
 window.toggleDayCard = toggleDayCard;

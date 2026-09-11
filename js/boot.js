@@ -7,8 +7,12 @@ window.App = {
     const isOfflineMode = localStorage.getItem('offlineMode') === 'true';
     if (isOfflineMode) {
         // If offline mode is enabled, we skip the school connect flow
-        // and just dispatch appReady so the rest of the app can load
-        window.dispatchEvent(new CustomEvent('appReady', { detail: { mode: 'offline' } }));
+        // and just dispatch appReady so the rest of the app can load.
+        // Use setTimeout to defer until all scripts on the page are loaded/parsed.
+        setTimeout(() => {
+            window.__appReady = true;
+            window.dispatchEvent(new CustomEvent('appReady', { detail: { mode: 'offline' } }));
+        }, 0);
         return;
     }
 
@@ -129,6 +133,7 @@ async function verifyAndConnectSchool(code) {
         if (overlay) overlay.classList.remove('active');
         
         // Notify rest of the app
+        window.__appReady = true;
         window.dispatchEvent(new CustomEvent('appReady', { 
             detail: { 
                 schoolCode: code, 
