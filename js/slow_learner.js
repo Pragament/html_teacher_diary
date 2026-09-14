@@ -2,8 +2,42 @@
 //  SLOW LEARNER PROGRESS MONITORING SCRIPT
 // ================================================================
 
+// ================================================================
+//  SLOW LEARNER PROGRESS MONITORING SCRIPT
+// ================================================================
+
+let currentActiveDate = getTodayStr();
+let allSlowLearnerEntries = [];
+let isInitialized = false;
+
+function normalizeDateStr(d) {
+    if (!d) return '';
+    if (typeof d === 'string') {
+        const s = d.trim();
+        if (s.includes('T')) return s.split('T')[0];
+        if (s.includes(' ')) return s.split(' ')[0];
+        return s;
+    }
+    try {
+        const dateObj = new Date(d);
+        if (!isNaN(dateObj.getTime())) {
+            return dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + String(dateObj.getDate()).padStart(2, '0');
+        }
+    } catch (e) {}
+    return String(d).trim();
+}
+
 function generateUUID() {
-    return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'sl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        try {
+            return crypto.randomUUID();
+        } catch (e) {}
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }
 
 function getTodayStr() {
@@ -13,36 +47,83 @@ function getTodayStr() {
 
 async function getSlowLearnerStorageKey() {
     let uid = 'offline';
-    if (window.getSupabaseClient) {
-        const client = window.getSupabaseClient();
+    const getClient = window.getSupabaseClient || (typeof getSupabaseClient === 'function' ? getSupabaseClient : null);
+    if (getClient) {
+        const client = getClient();
         if (client) {
-            const { data: { session } } = await client.auth.getSession();
-            if (session?.user?.id) uid = session.user.id;
+            try {
+                const { data: { session } } = await client.auth.getSession();
+                if (session?.user?.id) uid = session.user.id;
+            } catch (e) {}
+        }
+    }
+    if (uid === 'offline') {
+        const cached = localStorage.getItem('cachedProfile');
+        if (cached) {
+            try {
+                const p = JSON.parse(cached);
+                if (p.email) uid = p.email;
+            } catch (e) {}
         }
     }
     return `slow_learner_entries_${uid}`;
 }
 
-async function getSlowLearnerEntries() {
-    // 1. Try to fetch from Supabase if online
-    if (window.fetchSlowLearnerFromSupabase && localStorage.getItem('offlineMode') !== 'true') {
-        const result = await window.fetchSlowLearnerFromSupabase();
-        if (result.ok && result.data && result.data.length > 0) {
-            await saveSlowLearnerEntriesLocally(result.data);
-            return result.data;
-        }
-    }
-    
-    // 2. Fallback to local storage
+async function loadAllSlowLearnerEntries() {
+    // 1. Read from primary local storage
     const key = await getSlowLearnerStorageKey();
+    let localEntries = [];
     try {
         const raw = localStorage.getItem(key);
-        if (!raw) return [];
-        return JSON.parse(raw);
+        if (raw) localEntries = JSON.parse(raw);
     } catch (e) {
-        console.error('Error fetching slow learner entries', e);
-        return [];
+        console.error('Error parsing local slow learner entries', e);
     }
+    if (!Array.isArray(localEntries)) localEntries = [];
+
+    // Also fallback-merge from offline storage so local entries are never dropped
+    if (key !== 'slow_learner_entries_offline') {
+        try {
+            const offRaw = localStorage.getItem('slow_learner_entries_offline');
+            if (offRaw) {
+                const offEntries = JSON.parse(offRaw);
+                if (Array.isArray(offEntries) && offEntries.length > 0) {
+                    const existingIds = new Set(localEntries.map(e => e.id));
+                    offEntries.forEach(oe => {
+                        if (!existingIds.has(oe.id)) localEntries.push(oe);
+                    });
+                }
+            }
+        } catch (e) {}
+    }
+
+    allSlowLearnerEntries = localEntries;
+
+    // 2. Fetch fresh copy from Supabase if online and merge
+    const fetchFn = window.fetchSlowLearnerFromSupabase || (typeof fetchSlowLearnerFromSupabase === 'function' ? fetchSlowLearnerFromSupabase : null);
+    if (fetchFn && localStorage.getItem('offlineMode') !== 'true') {
+        try {
+            const result = await fetchFn();
+            if (result && result.ok && Array.isArray(result.data)) {
+                if (result.data.length > 0) {
+                    const entryMap = new Map();
+                    // Local items first
+                    localEntries.forEach(e => entryMap.set(e.id, e));
+                    // Overlay remote items
+                    result.data.forEach(e => entryMap.set(e.id, e));
+                    allSlowLearnerEntries = Array.from(entryMap.values());
+                    await saveSlowLearnerEntriesLocally(allSlowLearnerEntries);
+                } else if (localEntries.length > 0) {
+                    // Remote has 0 rows, sync local entries up
+                    const syncFn = window.syncSlowLearnerToSupabase || (typeof syncSlowLearnerToSupabase === 'function' ? syncSlowLearnerToSupabase : null);
+                    if (syncFn) syncFn(localEntries);
+                }
+            }
+        } catch (err) {
+            console.warn('Supabase fetch failed/bypassed, using local cache:', err);
+        }
+    }
+    return allSlowLearnerEntries;
 }
 
 async function saveSlowLearnerEntriesLocally(entries) {
@@ -58,41 +139,50 @@ function updateSlDateSubtitle() {
     const input = document.getElementById('slHeaderDateInput');
     const subtitle = document.getElementById('slModalDateSubtitle');
     if (!input || !subtitle) return;
-    const dateVal = input.value || getTodayStr();
-    const dateObj = new Date(dateVal);
-    const dateFormatted = isNaN(dateObj) ? dateVal : dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    const dateVal = normalizeDateStr(input.value) || currentActiveDate || getTodayStr();
+    const dateObj = new Date(dateVal + 'T00:00:00');
+    const dateFormatted = isNaN(dateObj.getTime()) ? dateVal : dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     subtitle.textContent = `Date: ${dateFormatted} — Progress Monitoring Record`;
 }
 
-function renderModalRows(entries) {
+function updateBackLinks(dateStr) {
+    const d = normalizeDateStr(dateStr) || currentActiveDate || getTodayStr();
+    const backBtn = document.querySelector('.sl-header-back-btn');
+    if (backBtn) backBtn.href = `dashboard.html?date=${encodeURIComponent(d)}`;
+}
+
+function renderSlowLearnerForDate(dateStr) {
     const container = document.getElementById('slModalRowsContainer');
     if (!container) return;
     container.innerHTML = '';
 
-    if (!entries || entries.length === 0) {
-        for (let i = 0; i < 5; i++) {
-            addSlowLearnerRow();
-        }
-        return;
-    }
+    const targetDate = normalizeDateStr(dateStr) || currentActiveDate;
+    const matching = allSlowLearnerEntries.filter(e => normalizeDateStr(e.date) === targetDate);
 
-    entries.forEach(entry => addSlowLearnerRow(entry));
+    if (matching.length === 0) {
+        for (let i = 0; i < 5; i++) {
+            addSlowLearnerRow({ date: targetDate });
+        }
+    } else {
+        matching.forEach(entry => addSlowLearnerRow(entry));
+    }
 }
 
 function addSlowLearnerRow(data = {}) {
     const container = document.getElementById('slModalRowsContainer');
     if (!container) return;
 
-    const defaultDate = data.date || (document.getElementById('slHeaderDateInput')?.value) || getTodayStr();
+    const defaultDate = normalizeDateStr(data.date) || currentActiveDate || normalizeDateStr(document.getElementById('slHeaderDateInput')?.value) || getTodayStr();
     const tr = document.createElement('tr');
     tr.className = 'sl-row-item';
-    tr.setAttribute('data-id', escapeHtml(data.id || ''));
+    const rowId = data.id || generateUUID();
+    tr.setAttribute('data-id', escapeHtml(rowId));
 
     const classOpts = [1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${data.className === String(n) ? 'selected' : ''}>${n}</option>`).join('');
     
     tr.innerHTML = `
         <td>
-            <input type="date" class="sl-input sl-input-date" value="${escapeHtml(defaultDate)}" />
+            <input type="date" class="sl-input sl-input-date" value="${escapeHtml(defaultDate)}" onchange="handleRowDateChange(this)" />
         </td>
         <td>
             <select class="sl-input sl-input-class"><option value="">-</option>${classOpts}</select>
@@ -138,26 +228,41 @@ function addSlowLearnerRow(data = {}) {
     container.appendChild(tr);
 }
 
-function removeSlowLearnerRow(btn) {
-    const tr = btn.closest('tr');
-    if (tr) tr.remove();
-}
-
-function clearAllSlowLearnerRows() {
-    if (!confirm('Are you sure you want to clear all rows?')) return;
-    const container = document.getElementById('slModalRowsContainer');
-    if (container) container.innerHTML = '';
-    for (let i = 0; i < 5; i++) {
-        addSlowLearnerRow();
+function handleRowDateChange(input) {
+    const tr = input.closest('tr');
+    if (!tr) return;
+    const rowDate = normalizeDateStr(input.value);
+    if (rowDate && rowDate !== currentActiveDate) {
+        // Update row attribute or keep in current dataset
+        tr.setAttribute('data-date', rowDate);
     }
 }
 
-async function saveAllSlowLearnerRows(redirectOnSave = true) {
+function removeSlowLearnerRow(btn) {
+    const tr = btn.closest('tr');
+    if (tr) tr.remove();
+    const container = document.getElementById('slModalRowsContainer');
+    if (container && container.querySelectorAll('tr.sl-row-item').length === 0) {
+        addSlowLearnerRow({ date: currentActiveDate });
+    }
+}
+
+function clearAllSlowLearnerRows() {
+    if (!confirm(`Are you sure you want to clear all rows for ${currentActiveDate}?`)) return;
+    const container = document.getElementById('slModalRowsContainer');
+    if (container) container.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+        addSlowLearnerRow({ date: currentActiveDate });
+    }
+}
+
+function collectRowsFromDOM() {
     const rows = document.querySelectorAll('#slModalRowsContainer tr.sl-row-item');
     const entries = [];
 
-    rows.forEach((tr, idx) => {
-        const date = tr.querySelector('.sl-input-date')?.value || '';
+    rows.forEach(tr => {
+        const rowDateInput = tr.querySelector('.sl-input-date')?.value;
+        const date = normalizeDateStr(rowDateInput) || currentActiveDate;
         const className = tr.querySelector('.sl-input-class')?.value || '';
         const section = tr.querySelector('.sl-input-section')?.value.trim() || '';
         const studentName = tr.querySelector('.sl-input-name')?.value.trim() || '';
@@ -167,8 +272,14 @@ async function saveAllSlowLearnerRows(redirectOnSave = true) {
         const progress = tr.querySelector('.sl-select-progress')?.value || '';
         const nextStep = tr.querySelector('.sl-textarea-nextstep')?.value.trim() || '';
 
+        let id = tr.getAttribute('data-id');
+        if (!id || id.startsWith('sl-')) {
+            id = generateUUID();
+            tr.setAttribute('data-id', id);
+        }
+
         entries.push({
-            id: tr.getAttribute('data-id') || generateUUID(),
+            id,
             date,
             className,
             section,
@@ -181,60 +292,97 @@ async function saveAllSlowLearnerRows(redirectOnSave = true) {
         });
     });
 
-    await saveSlowLearnerEntriesLocally(entries);
-    
-    let syncMsg = 'Saved locally.';
-    if (window.syncSlowLearnerToSupabase && localStorage.getItem('offlineMode') !== 'true') {
-        const syncResult = await window.syncSlowLearnerToSupabase(entries);
-        if (syncResult.ok) {
-            syncMsg = 'Synced to Supabase.';
-        } else {
-            console.error('Supabase sync failed:', syncResult.error);
-            syncMsg = 'Saved locally (Sync pending).';
+    return entries;
+}
+
+async function collectAndPersistCurrentDate(syncToRemote = false) {
+    const currentRows = collectRowsFromDOM();
+    const validRows = currentRows.filter(r => r.studentName || r.learningGap || r.subject || r.className);
+
+    // Normalize date on all valid rows
+    validRows.forEach(r => {
+        r.date = normalizeDateStr(r.date) || currentActiveDate;
+    });
+
+    // Replace entries for currentActiveDate
+    const otherDates = allSlowLearnerEntries.filter(e => normalizeDateStr(e.date) !== currentActiveDate);
+    allSlowLearnerEntries = [...otherDates, ...validRows];
+
+    await saveSlowLearnerEntriesLocally(allSlowLearnerEntries);
+
+    if (syncToRemote && localStorage.getItem('offlineMode') !== 'true') {
+        const syncFn = window.syncSlowLearnerToSupabase || (typeof syncSlowLearnerToSupabase === 'function' ? syncSlowLearnerToSupabase : null);
+        if (syncFn) {
+            try {
+                const syncResult = await syncFn(validRows, currentActiveDate);
+                return syncResult;
+            } catch (err) {
+                console.error('Supabase sync error:', err);
+                return { ok: false, error: err.message };
+            }
         }
     }
+    return { ok: true };
+}
 
-    if (typeof showToast === 'function') showToast(`💾 Slow Learner records saved! ${syncMsg}`, 'success');
-    
-    if (redirectOnSave || window.location.pathname.endsWith('slow_learner.html')) {
+async function handleDateChange() {
+    const dateInput = document.getElementById('slHeaderDateInput');
+    if (!dateInput || !dateInput.value) return;
+    const newDate = normalizeDateStr(dateInput.value);
+    if (newDate === currentActiveDate) return;
+
+    // 1. Persist current edits before switching dates
+    await collectAndPersistCurrentDate(false);
+
+    // 2. Switch date
+    currentActiveDate = newDate;
+    updateSlDateSubtitle();
+    updateBackLinks(newDate);
+
+    // 3. Render rows for new date
+    renderSlowLearnerForDate(newDate);
+}
+
+async function saveAllSlowLearnerRows(redirectOnSave = true) {
+    const syncResult = await collectAndPersistCurrentDate(true);
+
+    let syncMsg = 'Saved locally.';
+    if (syncResult && syncResult.ok) {
+        syncMsg = 'Synced to Supabase.';
+    } else if (syncResult && syncResult.error) {
+        console.warn('Supabase sync warning:', syncResult.error);
+        syncMsg = 'Saved locally.';
+    }
+
+    if (typeof showToast === 'function') {
+        showToast(`💾 Slow Learner records saved for ${currentActiveDate}! ${syncMsg}`, 'success');
+    }
+
+    if (redirectOnSave) {
         setTimeout(() => {
-            window.location.href = 'dashboard.html';
-        }, 1200);
+            navigateBackToDashboard();
+        }, 800);
     }
 }
 
+function navigateBackToDashboard() {
+    const d = currentActiveDate || normalizeDateStr(document.getElementById('slHeaderDateInput')?.value) || '';
+    window.location.href = d ? `dashboard.html?date=${encodeURIComponent(d)}` : 'dashboard.html';
+}
+
 function exportSlowLearnerCSV() {
-    const rows = document.querySelectorAll('#slModalRowsContainer tr.sl-row-item');
-    let entries = [];
+    const rows = collectRowsFromDOM();
+    const validRows = rows.filter(r => r.studentName || r.learningGap || r.subject);
 
-    if (rows.length > 0) {
-        rows.forEach(tr => {
-            const date = tr.querySelector('.sl-input-date')?.value || '';
-            const className = tr.querySelector('.sl-input-class')?.value || '';
-            const section = tr.querySelector('.sl-input-section')?.value.trim() || '';
-            const studentName = tr.querySelector('.sl-input-name')?.value.trim() || '';
-            const subject = tr.querySelector('.sl-input-subject')?.value.trim() || '';
-            const learningGap = tr.querySelector('.sl-textarea-gap')?.value.trim() || '';
-            const strategy = tr.querySelector('.sl-textarea-strategy')?.value.trim() || '';
-            const progress = tr.querySelector('.sl-select-progress')?.value || '';
-            const nextStep = tr.querySelector('.sl-textarea-nextstep')?.value.trim() || '';
-
-            entries.push({ date, className, section, studentName, subject, learningGap, strategy, progress, nextStep });
-        });
-    } else {
-        // Will only grab whatever was already parsed. If empty, getSlowLearnerEntries is async so we can't do this easily.
-        // It's fine for now. If table is empty, we just export nothing.
-    }
-
-    if (entries.length === 0) {
-        if (typeof showToast === 'function') showToast('No records to export', 'warning');
+    if (validRows.length === 0) {
+        if (typeof showToast === 'function') showToast('No records to export for this date', 'warning');
         return;
     }
 
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'Date,Class,Section,Student Name,Subject,Learning Gap,Strategy/Method Used,Progress,Next Step\n';
 
-    entries.forEach(row => {
+    validRows.forEach(row => {
         const line = [
             `"${(row.date || '').replace(/"/g, '""')}"`,
             `"${(row.className || '').replace(/"/g, '""')}"`,
@@ -252,7 +400,7 @@ function exportSlowLearnerCSV() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `slow_learner_progress_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `slow_learner_progress_${currentActiveDate || new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -268,8 +416,55 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+async function initSlowLearner() {
+    if (isInitialized) return;
+    isInitialized = true;
+
+    // 1. Resolve active date from URL query parameter or header input or today
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramDate = urlParams.get('date');
+    if (paramDate && /^\d{4}-\d{2}-\d{2}$/.test(paramDate)) {
+        currentActiveDate = normalizeDateStr(paramDate);
+    } else {
+        const headerVal = document.getElementById('slHeaderDateInput')?.value;
+        currentActiveDate = headerVal ? normalizeDateStr(headerVal) : getTodayStr();
+    }
+
+    const dateInput = document.getElementById('slHeaderDateInput');
+    if (dateInput) {
+        dateInput.value = currentActiveDate;
+        dateInput.onchange = handleDateChange;
+    }
+    updateSlDateSubtitle();
+    updateBackLinks(currentActiveDate);
+
+    // Update school name if available
+    if (window.App && window.App.school && window.App.school.schoolName) {
+        const schoolEl = document.querySelector('.sl-modal-school');
+        if (schoolEl) schoolEl.textContent = window.App.school.schoolName;
+    }
+
+    // 2. Load dataset and render
+    await loadAllSlowLearnerEntries();
+    renderSlowLearnerForDate(currentActiveDate);
+
+    // 3. Load student autocomplete database
+    const loadFn = window.loadTestStudents || (typeof loadTestStudents === 'function' ? loadTestStudents : null);
+    if (loadFn) {
+        try {
+            await loadFn();
+        } catch (error) {
+            console.error('Error loading student autocomplete DB:', error);
+        }
+    }
+}
+
 // Expose functions globally
-window.getSlowLearnerEntries = getSlowLearnerEntries;
+window.initSlowLearner = initSlowLearner;
+window.handleDateChange = handleDateChange;
+window.handleRowDateChange = handleRowDateChange;
+window.navigateBackToDashboard = navigateBackToDashboard;
+window.getSlowLearnerEntries = loadAllSlowLearnerEntries;
 window.saveSlowLearnerEntriesLocally = saveSlowLearnerEntriesLocally;
 window.addSlowLearnerRow = addSlowLearnerRow;
 window.removeSlowLearnerRow = removeSlowLearnerRow;
@@ -277,7 +472,7 @@ window.clearAllSlowLearnerRows = clearAllSlowLearnerRows;
 window.saveAllSlowLearnerRows = saveAllSlowLearnerRows;
 window.updateSlDateSubtitle = updateSlDateSubtitle;
 window.exportSlowLearnerCSV = exportSlowLearnerCSV;
-window.renderModalRows = renderModalRows;
+window.renderModalRows = renderSlowLearnerForDate;
 window.getTodayStr = getTodayStr;
 
 // ================================================================
