@@ -174,6 +174,13 @@ async function verifyAndConnectSchool(code) {
             window._pendingAuthTab = null;
         }
 
+        if (window._pendingGoogleLogin) {
+            window._pendingGoogleLogin = false;
+            if (typeof window.handleGoogleSignIn === 'function') {
+                window.handleGoogleSignIn();
+            }
+        }
+
     } catch (err) {
         console.error("Error connecting to school:", err);
         if (errorMsg) {
@@ -248,6 +255,28 @@ window.openLoginFlow = async function(tab = 'login') {
     } catch (error) {
         localStorage.removeItem('teacherDiary.school');
         window._pendingAuthTab = tab;
+        const schoolOverlay = document.getElementById('school-code-overlay');
+        if (schoolOverlay) schoolOverlay.classList.add('active');
+    }
+};
+
+window.startGoogleLoginFlow = async function(event) {
+    if (event) event.preventDefault();
+
+    const schoolDataRaw = localStorage.getItem('teacherDiary.school');
+    window._pendingGoogleLogin = true;
+
+    if (!schoolDataRaw) {
+        const schoolOverlay = document.getElementById('school-code-overlay');
+        if (schoolOverlay) schoolOverlay.classList.add('active');
+        return;
+    }
+
+    try {
+        const school = JSON.parse(schoolDataRaw);
+        await verifyAndConnectSchool(school.schoolCode);
+    } catch (error) {
+        localStorage.removeItem('teacherDiary.school');
         const schoolOverlay = document.getElementById('school-code-overlay');
         if (schoolOverlay) schoolOverlay.classList.add('active');
     }
