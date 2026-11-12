@@ -1,286 +1,167 @@
-# 📚 Teacher's Daily Planner & LMS
+# Teacher's Daily Planner & LMS
 
-A modern, responsive web application for schools to manage daily classroom activities, track curriculum progress, monitor slow learners, manage timetables, and facilitate a principal approval workflow with real-time sync via Supabase.
+A static HTML, CSS, and JavaScript app for daily teaching diaries, period attachments, principal reviews, timetable imports, and slow learner progress tracking. Supabase provides authentication, database access, private file storage, and inbox notifications. Browser storage holds settings, cached data, and local records.
 
----
+## Run locally
 
-## 🧑‍🏫 User Guide
+```bash
+git clone https://github.com/Pragament/html_teacher_diary.git
+cd html_teacher_diary
+python3 -m http.server 8000
+```
 
-### For Teachers
+Open [the local landing page](http://localhost:8000/index.html). The other entry points are `dashboard.html` and `slow_learner.html`; connected use requires a school configuration and authenticated session.
 
-1. **Sign In & School Connect**:
-   - Open `index.html` in your browser.
-   - Enter your **School Code** (e.g., `MYSCHOOL`) or click **Continue in Offline Local Mode** to use the app without an internet connection.
-   - Sign in using your email and password, or click **Continue with Google**.
-2. **Logging Daily Activities**:
-   - Navigate to the **📝 Daily Entry** tab on `dashboard.html`.
-   - Select the date (defaults to today). If your timetable is set up, your class and subject will automatically fill in for each period.
-   - Enter your **Classwork** and **Homework**.
-   - Type `#` in the text box to view auto-suggestions for chapters and topics mapped to your class and subject.
-   - To attach files (lesson plans, worksheets, student photos), click **📎 Attach File** (supports PDFs, images, docs up to 10 MB).
-   - Use **📋 Copy from previous** to duplicate yesterday's period entries in one click.
-3. **Saving & Submitting**:
-   - Click **💾 Save** to keep your entry as an editable draft.
-   - When finished, click **📤 Submit for Approval** to send your daily diary to the Principal.
-   - If the Principal requests revisions, a banner with their feedback note will appear on your entry. Make the required edits and re-submit.
-4. **🌱 Slow Learner Progress Monitoring**:
-   - Click the **🌱 Slow Learner Progress** button on the header or open `slow_learner.html`.
-   - Add rows for students who need remedial support. As you type a student's name, autocomplete suggestions appear from your school's student directory.
-   - Fill in the Learning Gap, Strategy/Method Used, Progress status, and Next Steps.
-   - Click **💾 Save Changes** to sync to the cloud, or click **📥 Export CSV** to download a spreadsheet copy.
+There is no build step, application server, or npm start/test script. The pages load ordinary deferred scripts and browser libraries from CDNs. `npm install` is not required to serve the current frontend. Use HTTP on localhost for development and HTTPS for deployment so service workers and authentication can operate.
 
----
+## Sign-in and school connection
 
-### For Principals & Vice Principals
+1. Click **Login with Google** on the landing page.
+2. If no school is stored, enter an active school code. The app looks it up in [config/schools.v1.json](config/schools.v1.json), initializes that project's Supabase client, and continues Google sign-in.
+3. After authentication, the app redirects to `dashboard.html`. The school selection is remembered in browser storage.
 
-1. **Dashboard Overview & KPIs**:
-   - Switch to the **📊 Principal Dashboard** tab.
-   - Review live metric cards: **Total Teachers**, **Pending Diaries**, **Signed Today**, **Missing Entries**, and **Late Submissions**.
-2. **Reviewing Diaries**:
-   - Under the **Pending Review** sub-tab, filter submissions by Teacher Name, Class, Subject, or Date.
-   - Click on any teacher's submission card to open the **Diary Review Modal**.
-3. **Approving or Requesting Revisions**:
-   - Inspect period activities and review any attached documents or photos.
-   - **Approve**: Click **✅ Sign & Approve** to digitally stamp and lock the diary.
-   - **Request Revision**: Click **🔄 Request Revision**, type specific instructions in the feedback box, and return it to the teacher.
-   - **Reject**: Click **❌ Reject** to decline the submission.
-4. **Analytics & Audit History**:
-   - Click **Analytics** on any teacher to open their **30-Day Summary** (completion rates, revision counts, average submission time, and activity bar charts).
-   - Click **🕐 Audit Trail** to view the Google Docs-style revision timeline showing exact submission and edit history.
+Email/password sign-in, registration, and demo buttons remain in the authentication overlay and handlers. The visible landing page's main entry point is Google login. **Continue in Offline Local Mode** is available in the school connection and authentication overlays. Demo Teacher and Demo Principal use local demo state rather than real Supabase accounts.
 
----
+Offline mode uses a separate local diary storage key. Cloud submissions, approvals, uploads, and notifications require an authenticated connection. Initial loading still depends on assets being available; the service worker caches same-origin resources but does not cache third-party CDN libraries or Supabase requests. Use explicit Save actions and CSV exports; the current code does not wire up a periodic/debounced diary autosave or a background retry queue.
 
-### For School Administrators
+## Teacher workflow
 
-1. **Timetable Setup**:
-   - Open the **🛠️ Admin Panel** tab.
-   - Prepare a CSV file containing your teachers' weekly schedule formatted as:
-     ```csv
-     Teacher Email,Day (1-7),Period (1-8),Class-Section,Subject
-     teacher1@school.com,1,1,10A,Mathematics
-     teacher1@school.com,1,2,10B,Mathematics
-     ```
-     *(Note: Day 1 = Monday ... Day 7 = Sunday)*
-   - Click **Upload** to automatically map schedules to all teachers.
-2. **Role Assignments**:
-   - Manage user roles (`teacher`, `principal`, `admin`) directly in the Supabase `users` table.
+1. Open **Daily Entry**, select a date, and enter class, section, subject, classwork, and homework for each period. The default is eight periods; change the period count and curriculum selection in Settings. A configured timetable supplies class/subject defaults.
+2. Type `#` for curriculum tag suggestions. **Copy from previous** uses saved local activity records; it is not a guaranteed copy of yesterday's cloud diary.
+3. Attach files to a period. The browser allows up to **10 MB per file**, **10 files per period**, and **50 MB per period**. Current uploads use private `period_files` objects and one-hour signed URLs.
+4. Click **Save** for a draft or **Submit for Approval** for review. Draft revisions are updated in place; saving after a non-draft revision creates a new revision. Submitted and approved entries appear locked in the editor. Revision requests display feedback and allow resubmission.
+5. Use the past-activities view to search/filter entries, inspect revision history, and import/export activity CSVs. A Delete action is also available for daily entries.
 
----
+**Save** or **Ctrl/⌘ + S** is the supported explicit diary save path. A failed cloud save can display an offline-save message, but `saveEntryToSupabase()` returns early on several failures before writing the local day record. Verify saved records or export a copy before leaving the page after a sync failure.
 
-## 🛠️ Complete Supabase Setup Guide (Step-by-Step)
+## Slow learner progress
 
-Follow these steps to configure your Supabase backend from scratch:
+Open **Slow Learner Progress** from Daily Entry. The selected date is passed to `slow_learner.html?date=YYYY-MM-DD`.
 
-### Step 1: Create a Supabase Project
-1. Create a free account at [Supabase](https://supabase.com) and click **New Project**.
-2. Set a **Project Name**, secure **Database Password**, and select your nearest **Region**.
-3. Once provisioned, go to **Project Settings** (gear icon) -> **API**.
-4. Note down your:
-   - **Project URL** (e.g., `https://abcdefghijklm.supabase.co`)
-   - **anon public Key** (e.g., `eyJhbGciOi...`)
+- Choose class and section, then enter a student name or use autocomplete. Suggestions come from [data/test_students.csv](data/test_students.csv), not a Supabase student directory.
+- Record subject, learning gap, strategy/method, progress, and next step.
+- **Save Changes** persists locally, attempts cloud sync when connected, and returns to the dashboard. Switching dates preserves current edits locally without performing that cloud sync.
+- **Export CSV** downloads a copy. Cloud sync sends named students only and replaces the current teacher's rows for the selected date.
 
----
+The bundled directory uses headers `student_id,student_name,class,section,roll_no`. The page fetches this static file directly, so any directory placed there is served to clients. The current progress page fetches and edits the signed-in teacher's own entries, even when the user's role has broader database read permissions.
 
-### Step 2: Run Database Migrations in SQL Editor
-1. In your Supabase Dashboard, click on **SQL Editor** in the left sidebar.
-2. Click **New query**.
-3. Open [`all_migrations.sql`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/all_migrations.sql) from this repository, copy its entire contents, paste it into the SQL Editor, and click **Run**.
-   - This sets up the core tables: `users`, `daily_entries`, `timetable`, `attachments`, `principal_signatures`, `audit_logs`, `notifications`, `boards`, `classes`, and `subjects`.
-   - It also establishes Row Level Security (RLS) policies, database triggers, RPC functions, and storage bucket policies.
-4. Click **New query** again.
-5. Open [`slow_learner_migration.sql`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/slow_learner_migration.sql), copy its contents, paste it into the editor, and click **Run**.
-   - This sets up the `slow_learner_entries` table with RLS policies and timestamp triggers.
+## Principal review and administration
 
----
+The **Principal Dashboard** provides pending review and approved history views, teacher/class/subject/date filters, review dialogs, attachments, and audit timelines.
 
-### Step 3: Configure Authentication & Redirect URLs
-1. Navigate to **Authentication -> Providers** in the Supabase dashboard.
-2. **Email Provider**:
-   - Ensure **Email** is enabled.
-   - *(Recommended for local dev)*: Under Email settings, toggle off **Confirm email** so users can sign in immediately after registering.
-3. **Google OAuth Provider** *(Optional)*:
-   - If you want Google sign-in, enable **Google** under Providers.
-   - In the [Google Cloud Console](https://console.cloud.google.com/), create an OAuth 2.0 Client ID for Web Applications.
-   - Add Supabase's Callback URL to your Google Authorized redirect URIs:
-     `https://<your-project-id>.supabase.co/auth/v1/callback`
-   - Paste the Google **Client ID** and **Client Secret** into your Supabase Google Provider configuration and save.
-4. **Set Redirect URLs**:
-   - In Supabase, go to **Authentication -> URL Configuration**.
-   - Add your application URLs to **Redirect URLs**:
-     - `http://localhost:8000/dashboard.html` (for local development)
-     - `https://<your-domain>/dashboard.html` (for production)
+- **Sign & Approve** marks entries approved and writes signature records containing a generated hash, signer, timestamp, and optional remarks.
+- **Request Revision** records feedback and sets `revision_requested`.
+- **Reject** also uses `revision_requested`, with a standard rejection note and a rejection notification. There is no separate `rejected` diary status.
+- Teacher analytics use the last 30 days, with an approximate 22-working-day completion denominator.
+- KPI cards summarize teachers, pending diaries, approved diary owners for today's diary date, missing entries, and late submissions. They are fetched when the dashboard renders; only inbox notifications subscribe to Supabase Realtime. The late cutoff defaults to 16:00 and is stored in the current browser.
 
----
+Admins and super admins also receive the **Admin Panel** for timetable CSV upload:
 
-### Step 4: Verify Storage Buckets
-1. Navigate to **Storage** in the Supabase sidebar.
-2. Verify that the bucket **`period_files`** exists.
-   - It should be marked as **Private** (public = false).
-   - Its RLS policies (created during `all_migrations.sql`) restrict file access so teachers only access their own uploads and principals access their school's files.
-3. *(Optional)* Create a public bucket named **`activity_photos`** if you plan to upload direct photos.
+```csv
+Teacher Email,Day (1-7),Period (1-8),Class-Section,Subject
+teacher1@school.com,1,1,10A,Mathematics
+teacher1@school.com,1,2,10B,Mathematics
+```
 
----
+Day 1 is Monday and day 7 is Sunday. Include a header row; the importer skips it. Teachers must already have matching email profiles in `public.users`. Each row upserts by teacher, weekday, and period. The importer splits values on commas and does not support quoted commas inside values.
 
-### Step 5: Assign User Roles (Principal / Admin)
-When a user signs up through the app, they receive the default role `teacher`. To elevate a user to **Principal** or **Admin**:
-1. Go to **Table Editor -> users** table in Supabase.
-2. Find the user's row by their email address.
-3. Change their `role` column value from `teacher` to:
-   - `principal` (grants review, approval, and analytics access)
-   - `admin` (grants timetable uploads and administrative permissions)
-4. Save the row. The user will see their upgraded dashboard upon their next sign-in.
+### Role behavior
 
----
+The database accepts `teacher`, `principal`, `vice_principal`, `hod`, `admin`, and `super_admin`. Profile rows are created/updated by browser sign-in logic. New profiles normally start as teachers, although the implementation can reuse a cached role. Assign elevated roles deliberately in `public.users`; [principal_role.sql](principal_role.sql) is a manual example requiring an actual email.
 
-### Step 6: Connect the Frontend to Your Supabase Instance
+| Role | Principal tab shown | Admin tab shown | Slow learner page |
+| --- | --- | --- | --- |
+| Teacher | No | No | Own entries |
+| Principal | Yes | No | Own entries |
+| Vice principal | No | No | Own entries |
+| HOD | No | No | Own entries |
+| Admin / super admin | Yes | Yes | Own entries |
 
-#### Method A: Multi-School Config (`config/schools.v1.json`) — Recommended
-Edit [`config/schools.v1.json`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/config/schools.v1.json) and add your school entry:
+This table describes `applyRoleBasedUI()` in [js/ui.js](js/ui.js). Database RLS grants vice principals and HODs additional reads that are not exposed as matching dashboard tabs. Daily Entry remains available across roles; submission visibility follows entry/authentication state rather than a teacher-only role check. See [supabase_schema.md](supabase_schema.md) for actual database permissions and known policy limitations.
+
+## Backend configuration
+
+### Connect a school
+
+Add a school entry in [config/schools.v1.json](config/schools.v1.json):
+
 ```json
 {
   "MYSCHOOL": {
-    "schoolName": "Delhi Public School",
+    "schoolName": "Example School",
     "status": "active",
-    "supabaseUrl": "https://<your-project-id>.supabase.co",
-    "anonKey": "<your-anon-public-key>"
+    "supabaseUrl": "https://<project-id>.supabase.co",
+    "anonKey": "<browser-safe-public-key>"
   }
 }
 ```
-When users open `index.html`, typing `MYSCHOOL` connects the app directly to your Supabase backend.
 
-#### Method B: Local Environment Fallback (`js/env.js`)
-For quick single-school local testing without entering a school code, edit [`js/env.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/env.js):
+School codes route to Supabase projects. The final checked-in schema is **single school per project**: it removes `schools` and core `school_id` columns. Mapping multiple school codes to the same project does not isolate their records.
+
+[js/env.js](js/env.js) supplies a legacy `window.ENV` fallback for `getSupabaseClient()`:
+
 ```javascript
 window.ENV = {
-  SUPABASE_URL: 'https://<your-project-id>.supabase.co',
-  SUPABASE_KEY: '<your-anon-public-key>'
+  SUPABASE_URL: 'https://<project-id>.supabase.co',
+  SUPABASE_KEY: '<browser-safe-public-key>'
 };
 ```
 
----
+This fallback does not replace the school-selection bootstrap or initialize `window.App.supabase`, which the auth flow requires. The static app does not automatically read `.env`; no generation/build script is defined in `package.json`. Browser configuration must use public keys; privileged keys and Google client secrets belong in backend/provider configuration.
 
-## ✨ Features
+### Database, authentication, and storage
 
-- **Multi-Role Authentication & Access Control** – Role-based interfaces for Teachers, Principals, and Admins via Supabase Auth.
-- **Bulk Daily Activity Entry** – Full-day period logging with subject selection, auto-save drafts, and Copy-From-Previous.
-- **🌱 Slow Learner Progress Monitoring (`slow_learner.html`)** – Student-level remedial logs with gaps, strategies, progress ratings, and CSV sync.
-- **🎯 Dynamic Curriculum & #Tag Autocomplete** – Dynamic syllabus topics and instant `#tag` chapter suggestions.
-- **📎 File Attachments & Media Lightbox** – Secure file uploads to private Supabase storage with signed URLs.
-- **📤 Approval & Revision Workflow** – Full submission state machine with digital stamps, reject options, and revision feedback.
-- **📊 Principal Dashboard & Analytics** – Real-time KPI cards, late submission tracking, and 30-day teacher performance graphs.
-- **🕐 Revision History & Audit Trail** – Google Docs-style revision timeline with timestamps, version diffs, and audit logs.
-- **🗓️ Timetable Management & Admin Panel** – Bulk timetable upload via CSV mapping teachers to periods.
-- **🔔 In-App & Real-Time Notifications** – Real-time push updates for submission and approval events via Supabase channels.
-- **💾 CSV Data Management** – Export and import classroom records in CSV format.
-- **❓ Interactive Tour Guide** – Guided onboarding walkthrough powered by Intro.js.
-- **🌙 Dark Mode & PWA Ready** – Light/dark theme switch and Service Worker offline asset caching.
+Read [supabase_schema.md](supabase_schema.md) before provisioning. It documents 11 defined public tables, relationships, RLS, functions, Storage paths, and missing app contracts.
 
----
+| File | Purpose |
+| --- | --- |
+| [all_migrations.sql](all_migrations.sql) | Historical core/workflow/notification/curriculum migrations, ending in the single-school refactor |
+| [slow_learner_migration.sql](slow_learner_migration.sql) | Remedial progress table, indexes, RLS, and updated_at trigger |
+| [migration_add_delete_policy.sql](migration_add_delete_policy.sql) | Entry deletion permissions and cascading signature deletion |
+| [principal_role.sql](principal_role.sql) | Manual principal role-assignment example |
 
-## 📁 Project Structure
+The combined SQL is not a reliable one-click fresh-project installer. Some policies reference `get_my_role()` before its definition; policy/trigger/publication creation is not consistently repeatable; and legacy/content tables referenced by JavaScript have no checked-in definitions. Reconcile ordering and existing database objects before applying it. The schema document lists these gaps and existing RLS limitations, including self-profile role updates.
+
+For connected Google login, enable/configure the Google provider for the selected Supabase project. Register that project's Auth callback with Google, and allow the app's actual dashboard redirect URL in Supabase. The code constructs it as the current origin plus the current directory and `dashboard.html`, for example `http://localhost:8000/dashboard.html` or `https://<host>/<deployment-path>/dashboard.html`. Email/password handlers additionally require the email provider and its configured confirmation behavior.
+
+Current file uploads require the **private `period_files` bucket** and its ownership/read policies. Elevated readers access files throughout the selected project. The legacy photo helper expects `activity_photos` public URLs, but its bucket and policies are not provisioned by these migrations.
+
+Notifications require `public.notifications` in the `supabase_realtime` publication and the `notify_principals` RPC. The checked-in RPC sends submission notifications to principal/admin/super_admin profiles; it does not include vice principals.
+
+### Curriculum sources
+
+[js/curriculum.js](js/curriculum.js) first uses cached or fetched topic JSON at:
 
 ```text
-html_teacher_diary/
-├── index.html                  # Landing page & authentication portal
-├── dashboard.html              # Main application dashboard (Teachers, Principals, Admins)
-├── slow_learner.html           # Slow Learner progress tracking interface
-├── sw.js                       # Service worker for PWA caching & offline support
-├── all_migrations.sql          # Primary database schema, RLS policies, RPCs, & storage buckets
-├── slow_learner_migration.sql  # Database schema & RLS policies for slow learner entries
-├── config/
-│   └── schools.v1.json         # Multi-tenant school mappings (School Code -> Supabase URL/Key)
-├── css/
-│   ├── styles.css              # Main application styling (design system, dark mode, responsive layout)
-│   └── slow_learner.css        # Dedicated styles for slow learner tracking table
-├── data/
-│   └── test_students.csv       # Sample student directory for autocomplete testing
-└── js/
-    ├── admin.js                # Admin panel logic (timetable CSV upload)
-    ├── api.js                  # Supabase REST client, dynamic curriculum & nameserver config API
-    ├── app.js                  # Main controller, tab switching, and event listeners
-    ├── approval.js             # Submission state machine & teacher approval banners
-    ├── auth.js                 # Authentication handlers (Email/Pass, Google OAuth, session state)
-    ├── autocomplete.js         # #Tag and curriculum hashtag autocomplete logic
-    ├── boot.js                 # Application bootstrapper & multi-school routing
-    ├── csv.js                  # CSV import/export utilities and test student loader
-    ├── curriculum.js           # Curriculum selection and dynamic topic fetcher
-    ├── data.js                 # LocalStorage persistence layer and activity state helpers
-    ├── env.js                  # Local dev credentials fallback
-    ├── file-upload.js          # File attachment validation, Supabase upload & signed URLs
-    ├── history.js              # Revision history timeline and audit log viewer
-    ├── notifications.js        # In-app notifications & Supabase Realtime listeners
-    ├── principal.js            # Principal dashboard, KPI calculations, review modal, analytics
-    ├── slow_learner.js         # Slow learner table controller, autosave, and sync logic
-    ├── storage-manager.js      # LocalStorage caching engine with TTL and quota management
-    ├── supabase.js             # Supabase client singleton, data sync, and audit helpers
-    ├── timetable.js            # Fetch and map teacher's daily schedule
-    ├── toast.js                # Toast notification system
-    ├── tour.js                 # Guided onboarding tour (Intro.js)
-    └── ui.js                   # DOM rendering for daily entries, cards, and past activities
+https://staticapis.pragament.com/lms/<board>/<class>/<subject-key>/topics.json
 ```
 
----
+Board and class keys are lowercase; Mathematics maps to `math` and Social Studies to `social`. Defaults are CBSE, class 10, Mathematics. If no topic tags are available, the app falls back to Supabase `content_tags` and then `chapters`. Configuration dropdowns query `boards`, `classes`, and `subjects`, with local UI fallbacks.
 
-## 🏗️ Architecture & Key Modules
+[js/api.js](js/api.js) also defines REST helpers for `modules` and `questions`. Definitions for `chapters`, `modules`, `questions`, and `content_tags` are absent from the migrations. These content requests use the configured public key as their bearer token, so their grants/RLS must support that access. Current diary writes use `daily_entries`; legacy push/pull helpers use a different row contract and must not be assumed interchangeable with it.
 
-| Module | Purpose |
-|---|---|
-| [`boot.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/boot.js) | Verifies school code against `schools.v1.json`, initializes the Supabase client, and coordinates authentication redirects. |
-| [`auth.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/auth.js) | Manages login, registration, Google OAuth sign-in, user roles, profile state, and logout. |
-| [`supabase.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/supabase.js) | Core Supabase interface for daily entries, audit logging, push/pull operations, and slow learner sync. |
-| [`principal.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/principal.js) | Drives KPI statistics, diary approvals, revision notes, and 30-day teacher performance charts. |
-| [`slow_learner.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/slow_learner.js) | Full CRUD, table manipulation, and sync engine for remedial student monitoring. |
-| [`file-upload.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/file-upload.js) | Handles client-side validation and Supabase Storage uploads to the `period_files` bucket. |
-| [`curriculum.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/curriculum.js) & [`autocomplete.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/autocomplete.js) | Connects to external curriculum APIs and delivers real-time topic tag suggestions. |
-| [`history.js`](file:///c:/Users/prana/Projects/pragamant/html_teacher_diary/js/history.js) | Reconstructs versioned revisions and audit trail logs into an interactive timeline modal. |
+## Project map
 
----
+| Path | Responsibility |
+| --- | --- |
+| [index.html](index.html) | Google landing entry, school connection, auth overlays |
+| [dashboard.html](dashboard.html) | Daily entry, past activities, principal/admin views, settings |
+| [slow_learner.html](slow_learner.html) | Remedial progress page |
+| [sw.js](sw.js) | Same-origin asset cache and service worker lifecycle |
+| [css/styles.css](css/styles.css), [css/slow_learner.css](css/slow_learner.css) | Responsive layouts and theme styling |
+| [js/boot.js](js/boot.js), [js/auth.js](js/auth.js) | School bootstrap, authentication, profile and session handling |
+| [js/app.js](js/app.js), [js/ui.js](js/ui.js) | Dashboard initialization, interactions, entry rendering and saving |
+| [js/data.js](js/data.js), [js/storage-manager.js](js/storage-manager.js) | Local records, settings, and cache helpers |
+| [js/supabase.js](js/supabase.js) | Entry revisions, attachments metadata, audit writes, legacy sync, slow learner sync |
+| [js/approval.js](js/approval.js), [js/principal.js](js/principal.js), [js/history.js](js/history.js) | Review workflow, metrics, analytics, revision/audit history |
+| [js/file-upload.js](js/file-upload.js), [js/notifications.js](js/notifications.js) | Private uploads, signed URLs, inbox and Realtime |
+| [js/api.js](js/api.js), [js/curriculum.js](js/curriculum.js), [js/autocomplete.js](js/autocomplete.js) | Content requests, topic loading, and tag suggestions |
+| [js/csv.js](js/csv.js), [js/slow_learner.js](js/slow_learner.js) | Activity CSV tools, student directory loading, progress editor |
+| [js/admin.js](js/admin.js), [js/timetable.js](js/timetable.js) | Timetable CSV import and teacher schedule lookup |
+| [js/tour.js](js/tour.js), [js/toast.js](js/toast.js) | Intro.js onboarding and messages |
 
-## 🚀 Getting Started & Local Development
+## Runtime dependencies and deployment
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/pranav-pachn/html_teacher_diary.git
-   cd html_teacher_diary
-   ```
+The HTML loads Supabase JS v2 and Intro.js 7.2.0 from jsDelivr. The npm manifest lists `@supabase/supabase-js` and `@supabase/ssr`, but the current pages use CDN scripts and do not implement SSR or a bundler.
 
-2. **Serve locally**:
-   Serve using any static web server (required for ES modules, Service Worker, and Supabase Auth):
-   ```bash
-   # Using Python
-   python -m http.server 8000
-
-   # Or using Node npx
-   npx serve .
-   ```
-
-3. **Open the application**:
-   - Landing & Login: `http://localhost:8000/index.html`
-   - Teacher & Principal Dashboard: `http://localhost:8000/dashboard.html`
-   - Slow Learner Monitoring: `http://localhost:8000/slow_learner.html`
-
----
-
-## 👥 Role Permissions Matrix
-
-| Feature | Teacher | Principal / Vice Principal | Admin |
-|---|:---:|:---:|:---:|
-| Fill & Save Daily Activities | ✅ | ✅ | ✅ |
-| Submit Diary for Approval | ✅ | — | — |
-| Review, Sign & Approve Diaries | — | ✅ | ✅ |
-| Request Revisions with Notes | — | ✅ | ✅ |
-| View Teacher Performance Analytics | — | ✅ | ✅ |
-| Manage Slow Learner Progress | ✅ (Own) | ✅ (All) | ✅ (All) |
-| Upload School Timetable CSV | — | — | ✅ |
-| Access Full School Audit Logs | — | ✅ | ✅ |
-| Export / Import Activities CSV | ✅ | ✅ | ✅ |
-
----
-
-## 📦 Dependencies & Tech Stack
-
-- **Core**: Vanilla HTML5, CSS3, JavaScript (ES6+ Modules)
-- **Database & Auth**: [@supabase/supabase-js v2](https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2)
-- **Guided Tour**: [Intro.js v7.2](https://introjs.com/)
-- **Typography**: [Google Fonts (Inter)](https://fonts.google.com/specimen/Inter)
-- **Offline / PWA**: Native Service Worker API
+Deploy the static files together, including `config`, `data`, `css`, and `js`. Dark mode and local settings are saved per browser. The service worker uses cache-first same-origin reads; deployments that change cached assets should update its cache version. No web app manifest is included, so service worker caching alone should not be treated as a complete installable PWA setup.
