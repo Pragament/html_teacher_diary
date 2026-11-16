@@ -97,6 +97,42 @@ window.studentsDB = [];
 window.studentsDBReady = false;
 
 async function loadTestStudents() {
+    // 1. Try fetching live from centralized Supabase students table
+    try {
+        let client = window.supabaseClient || (window.SchoolAuth && window.SchoolAuth.getClient ? window.SchoolAuth.getClient() : null);
+        if (!client && window.supabase && typeof window.supabase.createClient === 'function' && window.ENV) {
+            client = window.supabase.createClient(window.ENV.SUPABASE_URL, window.ENV.SUPABASE_KEY);
+        }
+        if (client) {
+            const { data, error } = await client
+                .from('students')
+                .select('id, admission_number, full_name, class, section, phone_number')
+                .eq('account_status', 'active')
+                .order('class', { ascending: true })
+                .order('section', { ascending: true })
+                .order('admission_number', { ascending: true });
+
+            if (!error && data && data.length > 0) {
+                const db = data.map(s => ({
+                    id: s.id, // Central student UUID!
+                    admissionNumber: s.admission_number,
+                    name: s.full_name,
+                    class: s.class,
+                    section: s.section,
+                    rollNo: s.admission_number,
+                    phone: s.phone_number
+                }));
+                window.studentsDB = db;
+                window.studentsDBReady = true;
+                console.log(`✅ Loaded ${db.length} students from Central Supabase Database.`);
+                return db;
+            }
+        }
+    } catch (err) {
+        console.warn('Central students table query failed, falling back to local CSV cache:', err);
+    }
+
+    // 2. Safe local CSV fallback
     try {
         const response = await fetch('data/test_students.csv');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -117,6 +153,7 @@ async function loadTestStudents() {
             if (cols.length < 2) continue;
             db.push({
                 id: cols[idIdx] || '',
+                admissionNumber: cols[idIdx] || '',
                 name: cols[nameIdx] || '',
                 class: cols[classIdx] || '',
                 section: cols[secIdx] || '',
@@ -125,10 +162,10 @@ async function loadTestStudents() {
         }
         window.studentsDB = db;
         window.studentsDBReady = true;
-        console.log(`Loaded ${db.length} students dynamically from CSV.`);
+        console.log(`Loaded ${db.length} students from CSV fallback.`);
         return db;
     } catch (e) {
-        console.error('Failed to load test_students.csv:', e);
+        console.error('Failed to load students directory:', e);
         window.studentsDB = [];
         window.studentsDBReady = false;
         throw e;
