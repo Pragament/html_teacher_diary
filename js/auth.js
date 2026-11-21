@@ -9,7 +9,7 @@ function isSupabaseConfigValid() {
 // ================================================================
 //  AUTH UI LOGIC
 // ================================================================
-let isBypassedAuth = localStorage.getItem('offlineMode') === 'true';
+let isBypassedAuth = false; // offline/demo bypass removed
 let currentAuthTab = 'login';
 let authListenerBound = false;
 let currentBoundClientConfig = '';
@@ -29,33 +29,19 @@ function clearAuthAlert() {
 }
 
 function switchAuthTab(tab) {
-    currentAuthTab = tab;
-    const loginBtn = document.getElementById('tab-login-btn');
-    const signupBtn = document.getElementById('tab-signup-btn');
-    const submitBtn = document.getElementById('auth-submit-btn');
-    const subtitle = document.querySelector('.auth-subtitle');
-    const nameGroup = document.getElementById('register-name-group');
-    const subjectGroup = document.getElementById('register-subject-group');
-    const nameInput = document.getElementById('auth-name');
-    
-    if (tab === 'login') {
-        loginBtn.classList.add('active');
-        signupBtn.classList.remove('active');
-        submitBtn.textContent = 'Sign In';
-        subtitle.textContent = 'Sign in to your Teacher Planner account';
-        if (nameGroup) nameGroup.style.display = 'none';
-        if (subjectGroup) subjectGroup.style.display = 'none';
-        if (nameInput) nameInput.removeAttribute('required');
-    } else {
-        loginBtn.classList.remove('active');
-        signupBtn.classList.add('active');
-        submitBtn.textContent = 'Register Account';
-        subtitle.textContent = 'Create your Teacher Planner account';
-        if (nameGroup) nameGroup.style.display = 'block';
-        if (subjectGroup) subjectGroup.style.display = 'block';
-        if (nameInput) nameInput.setAttribute('required', '');
-    }
+    // Public registration was removed: accounts are created by a principal/admin (manage-account function).
+    currentAuthTab = 'login';
     clearAuthAlert();
+}
+
+// Loads the signed-in user's profile row. The role ALWAYS comes from public.users (never from the browser).
+async function fetchActiveProfile(client, userId) {
+    const { data, error } = await client.from('users').select('id,name,email,role,is_active').eq('id', userId).maybeSingle();
+    if (error) return { ok: false, retryable: true, message: 'Could not load your profile (' + error.message + '). Please try again.' };
+    if (!data) return { ok: false, message: 'No school profile is linked to this account. Please contact your administrator.' };
+    if (!data.is_active) return { ok: false, message: 'This account has been deactivated. Please contact your principal.' };
+    if (['student', 'accountant'].includes(data.role)) return { ok: false, message: 'The Teacher Diary is for teaching staff. Your role (' + data.role + ') does not have access to it.' };
+    return { ok: true, profile: data };
 }
 
 async function handleAuthSubmit(event) {
@@ -63,63 +49,40 @@ async function handleAuthSubmit(event) {
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
     const submitBtn = document.getElementById('auth-submit-btn');
-    
-    const originalText = submitBtn.textContent;
+
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span> Working...';
-    
+    submitBtn.innerHTML = '<span class="spinner"></span> Signing in...';
+
     try {
         clearAuthAlert();
-        if (!isSupabaseConfigValid()) {
-            showAuthAlert('⚠️ Supabase is not configured. Please set up Supabase URL and Key in Settings.');
+        const client = isSupabaseConfigValid() ? getSupabaseClient() : null;
+        if (!client) {
+            showAuthAlert('⚠️ Could not connect to the school server. Check your internet connection and reload the page.');
             return;
         }
 
-        const client = getSupabaseClient();
-        if (!client) {
-            showAuthAlert('⚠️ Could not connect to Supabase. Please check your settings.');
+        const { data, error } = await client.auth.signInWithPassword({ email, password });
+        if (error) {
+            if (/Invalid login credentials/i.test(error.message)) showAuthAlert('Incorrect email or password.');
+            else if (/Email not confirmed/i.test(error.message)) showAuthAlert('Your email is not confirmed. Please contact your administrator.');
+            else if (/banned|disabled|deactivated/i.test(error.message)) showAuthAlert('This account has been deactivated. Please contact your principal.');
+            else showAuthAlert(error.message);
             return;
         }
-        
-        if (currentAuthTab === 'login') {
-            const { data, error } = await client.auth.signInWithPassword({ email, password });
-            if (error) {
-                if (error.message.includes('Email not confirmed')) {
-                    showAuthAlert('Your email is not confirmed. Please check your inbox and confirm your email.', 'error');
-                    return;
-                }
-                throw error;
-            }
-            localStorage.setItem('lastLoggedInEmail', email);
-            window.location.href = 'dashboard.html';
-        } else {
-            const name = document.getElementById('auth-name').value.trim();
-            const subject = document.getElementById('auth-subject').value.trim();
-            
-            const signUpOptions = {
-                email,
-                password,
-                options: {
-                    data: {
-                        full_name: name || '',
-                        subject: subject || ''
-                    }
-                }
-            };
-            const { data, error } = await client.auth.signUp(signUpOptions);
-            if (error) throw error;
-            if (data.session) {
-                window.location.href = 'dashboard.html';
-            } else {
-                showAuthAlert('📧 Verification email sent! Please check your inbox and verify your email before logging in.', 'success');
-                switchAuthTab('login');
-            }
+
+        const check = await fetchActiveProfile(client, data.user.id);
+        if (!check.ok) {
+            await client.auth.signOut();
+            showAuthAlert(check.message);
+            return;
         }
+        localStorage.setItem('lastLoggedInEmail', email);
+        window.location.href = 'dashboard.html';
     } catch (err) {
-        showAuthAlert(err.message || 'Authentication failed. Please try again.', 'error');
+        showAuthAlert(err.message || 'Sign in failed. Please try again.', 'error');
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = currentAuthTab === 'login' ? 'Sign In' : 'Register Account';
+        submitBtn.textContent = 'Sign In';
     }
 }
 
@@ -169,24 +132,6 @@ async function handleGoogleSignIn(event) {
     }
 }
 
-async function demoLogin(role) {
-    const demoUser = {
-        id: `demo-${role}`,
-        email: `${role}@demo.local`,
-        name: role === "principal" ? "Demo Principal" : "Demo Teacher",
-        role: role
-    };
-    localStorage.setItem("demoUser", JSON.stringify(demoUser));
-    localStorage.setItem("offlineMode", "true");
-    localStorage.setItem("cachedProfile", JSON.stringify({
-        name: demoUser.name,
-        email: demoUser.email,
-        avatar: "",
-        role: demoUser.role,
-        school: "Demo School"
-    }));
-    window.location.href = "dashboard.html";
-}
 async function handleSignOut() {
     const client = getSupabaseClient();
     if (client) {
@@ -197,13 +142,9 @@ async function handleSignOut() {
     localStorage.removeItem('lastLoggedInEmail');
     localStorage.removeItem('cachedProfile');
     localStorage.removeItem('demoUser');
+    localStorage.removeItem('teacherDiary.timetable');
+    if (window._ttChannel && client) { try { client.removeChannel(window._ttChannel); } catch (e) {} window._ttChannel = null; }
     window.location.href = 'index.html';
-}
-
-function bypassAuthToLocal() {
-    localStorage.setItem('offlineMode', 'true');
-    isBypassedAuth = true;
-    window.location.href = 'dashboard.html';
 }
 
 async function setupAuthListener() {
@@ -216,19 +157,9 @@ async function setupAuthListener() {
                 if (session) {
                     handleAuthState(session);
                 } else {
-                    const demoUser = localStorage.getItem('demoUser');
-                    if (!demoUser && !localStorage.getItem('offlineMode')) {
-                        // Confirmed: genuinely no session — clear cache and handle accordingly
-                        localStorage.removeItem('cachedProfile');
-                        localStorage.removeItem('userRole');
-                        handleAuthState(null);
-                    } else if (demoUser) {
-                        try {
-                            const parsed = JSON.parse(demoUser);
-                            window.currentUserRole = parsed.role || 'teacher';
-                            applyRoleBasedUI(window.currentUserRole);
-                        } catch (e) {}
-                    }
+                    localStorage.removeItem('cachedProfile');
+                    localStorage.removeItem('userRole');
+                    handleAuthState(null);
                 }
             } catch (e) {
                 initialSessionResolved = true;
@@ -260,58 +191,19 @@ async function setupAuthListener() {
 }
 
 async function upsertUserProfileAndFetchRole(session) {
+    // Name kept for compatibility. It no longer writes: profiles are created server-side and the role can only
+    // be changed by an admin (DB trigger guard_user_changes), so the browser only READS its profile.
     const cached = JSON.parse(localStorage.getItem('cachedProfile') || 'null');
     const fallbackRole = (cached && cached.role) || localStorage.getItem('userRole') || 'teacher';
-
     const client = getSupabaseClient();
-    if (!client) return { role: fallbackRole, school_name: '' };
-    
-    const meta = session.user.user_metadata || {};
-    const email = session.user.email;
-    const name = meta.full_name || meta.name || '';
-    const avatarUrl = meta.avatar_url || meta.picture || '';
-
+    if (!client) return { role: fallbackRole };
     try {
-        // 1. Fetch existing profile to check role
-        const { data: profile, error: fetchErr } = await client
-            .from('users')
-            .select('role')
-            .eq('id', session.user.id)
-            .maybeSingle();
-            
-        if (fetchErr) {
-            console.warn('GET /users error (preserving existing role):', fetchErr);
-            return { role: fallbackRole };
-        }
-            
-        if (!profile) {
-            // 2. If it doesn't exist in DB, create initial profile with fallbackRole (defaulting to teacher only if no role previously known)
-            await client.from('users').upsert({
-                id: session.user.id,
-                email: email,
-                name: name,
-                avatar_url: avatarUrl,
-                role: fallbackRole
-            }, { onConflict: 'id' });
-            return { role: fallbackRole };
-        } else {
-            // Update name, avatar while strictly preserving DB role
-            const userRole = profile.role || fallbackRole;
-            await client.from('users').upsert({
-                id: session.user.id,
-                email: email,
-                name: name,
-                avatar_url: avatarUrl,
-                role: userRole,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'id' });
-            
-            return {
-                role: userRole
-            };
-        }
+        const res = await fetchActiveProfile(client, session.user.id);
+        if (res.ok) return { role: res.profile.role, name: res.profile.name || '' };
+        if (res.retryable) return { role: fallbackRole };      // network/DB hiccup: keep working with cached role
+        return { blocked: true, message: res.message };
     } catch (err) {
-        console.warn('Error upserting user profile:', err);
+        console.warn('Error loading user profile:', err);
         return { role: fallbackRole };
     }
 }
@@ -363,13 +255,25 @@ async function handleAuthState(session) {
         try {
             profileInfo = await Promise.race([
                 upsertUserProfileAndFetchRole(session),
-                new Promise(resolve => setTimeout(() => resolve({ role: currentSavedRole }), 1500))
+                new Promise(resolve => setTimeout(() => resolve({ role: currentSavedRole }), 8000))
             ]);
         } catch (e) {
             console.warn('Profile fetch timeout/error, retaining role:', e);
         }
+        if (profileInfo.blocked) {
+            // Deactivated / unlinked / non-staff account: end the session and explain why.
+            try { sessionStorage.setItem('authNotice', profileInfo.message); } catch (e) {}
+            try { await getSupabaseClient().auth.signOut(); } catch (e) {}
+            ['offlineMode','userRole','cachedProfile','demoUser'].forEach(k => localStorage.removeItem(k));
+            window.location.href = 'index.html';
+            return;
+        }
         window.currentUserRole = profileInfo.role || currentSavedRole;
         localStorage.setItem('userRole', window.currentUserRole);
+        if (profileInfo.name) {
+            displayName = profileInfo.name;                       // teacher name comes from public.users
+            if (userName) userName.textContent = displayName;
+        }
         
         if (userRole) {
             const roleFormatted = window.currentUserRole.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -421,6 +325,10 @@ async function handleAuthState(session) {
         if (window.subscribeToNotifications) {
             window.subscribeToNotifications();
         }
+        // Live timetable updates (one subscription per session)
+        if (window.subscribeTimetableChanges) {
+            window.subscribeTimetableChanges();
+        }
 
         // Auto-select 'daily' dashboard tab when signed in
         const dailyTabButton = document.querySelector('[data-tab="daily"]');
@@ -433,6 +341,13 @@ async function handleAuthState(session) {
             return;
         }
 
+        try {
+            const notice = sessionStorage.getItem('authNotice');
+            if (notice) {
+                sessionStorage.removeItem('authNotice');
+                if (typeof showToast === 'function') showToast(notice, 'error');
+            }
+        } catch (e) {}
         localStorage.removeItem('userSubject');
         if (userBanner) userBanner.classList.add('hidden');
         if (userEmail) userEmail.textContent = '';
@@ -461,4 +376,3 @@ window.handleGoogleSignIn = handleGoogleSignIn;
 window.handleSignOut = handleSignOut;
 window.switchAuthTab = switchAuthTab;
 window.handleAuthSubmit = handleAuthSubmit;
-window.bypassAuthToLocal = bypassAuthToLocal;

@@ -38,6 +38,8 @@ function subscribeToNotifications() {
 function handleNewNotification(notification) {
     // Show a toast
     showToast(`🔔 ${notification.title}`, 'info');
+    // A substitution changed this teacher's periods: offer a refresh (we never re-render while they are typing)
+    if (['substitution_assigned', 'takeover_result'].includes(notification.type) && typeof showTimetableUpdatedBanner === 'function') showTimetableUpdatedBanner();
     
     // Play a subtle sound? (Optional)
     
@@ -106,7 +108,12 @@ function renderNotificationsPanel(notifications) {
         'submission': '📋',
         'approved': '✅',
         'rejected': '❌',
-        'revision_requested': '🔄'
+        'revision_requested': '🔄',
+        'substitution_assigned': '🔁',
+        'takeover_request': '🙋',
+        'takeover_accepted': '✅',
+        'takeover_declined': '❌',
+        'takeover_result': '🔁'
     };
 
     notifications.forEach(n => {

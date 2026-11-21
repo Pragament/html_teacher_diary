@@ -5,6 +5,7 @@ function setupTabs() {
     document.querySelectorAll('.tab-nav button[data-tab]').forEach(btn => {
         btn.addEventListener('click', function () {
             const tab = this.dataset.tab;
+            window._userPickedTab = true;
             document.querySelectorAll('.tab-nav button[data-tab]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             document.querySelectorAll('.tab-content').forEach(el => {
@@ -21,6 +22,7 @@ function setupTabs() {
             if (tab === 'view') renderViewTab();
             if (tab === 'settings') loadSettingsUI();
             if (tab === 'principal' && typeof renderPrincipalDashboard === 'function') renderPrincipalDashboard();
+            if (tab === 'substitutions' && typeof renderSubstitutionsTab === 'function') renderSubstitutionsTab();
         });
     });
 }
@@ -31,13 +33,10 @@ function setupTabs() {
 function init() {
     const isDashboard = window.location.pathname.endsWith('dashboard.html');
     if (isDashboard) {
-        const isOffline = localStorage.getItem('offlineMode') === 'true';
-        if (!isOffline) {
-            const school = localStorage.getItem('teacherDiary.school');
-            if (!school || !window.App || !window.App.supabase) {
-                window.location.href = 'index.html';
-                return;
-            }
+        const school = localStorage.getItem('teacherDiary.school');
+        if (!school || !window.App || !window.App.supabase) {
+            window.location.href = 'index.html';
+            return;
         }
     }
 
@@ -193,7 +192,6 @@ window.closeLightbox = closeLightbox;
 window.switchAuthTab = switchAuthTab;
 window.handleAuthSubmit = handleAuthSubmit;
 window.handleSignOut = handleSignOut;
-window.bypassAuthToLocal = bypassAuthToLocal;
 window.saveSubjectSetting = saveSubjectSetting;
 window.saveCurriculumConfigSetting = saveCurriculumConfigSetting;
 window.loadCurriculumCSV = loadCurriculumCSV;

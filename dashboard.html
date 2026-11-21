@@ -59,9 +59,6 @@
                 </div>
                 <button type="submit" class="auth-btn-submit" id="school-code-submit-btn">Connect</button>
             </form>
-            <div style="margin-top: 16px; text-align: center;">
-                <span class="auth-local-link" onclick="bypassAuthToLocal()" title="Use offline storage locally on this device without syncing">Continue in Offline Local Mode</span>
-            </div>
         </div>
     </div>
 
@@ -93,6 +90,7 @@
             <button data-tab="view">🔍 View Activities <span class="badge" id="viewBadge">0</span></button>
             <button data-tab="principal" style="display:none;">📊 Principal Dashboard</button>
             <button data-tab="admin" style="display:none;">🛠️ Admin Panel</button>
+            <button data-tab="substitutions" style="display:none;">🔁 Substitutions</button>
             <button data-tab="notifications" id="notificationsTabBtn">
                 🔔 Notifications <span class="badge" id="notificationsBadge" style="display:none;">0</span>
             </button>
@@ -247,14 +245,22 @@
         <!-- ====== TAB: ADMIN ====== -->
         <section class="tab-content" id="tab-admin">
             <div class="card">
-                <div class="card-title">🛠️ Admin Panel</div>
-                <p>Manage users, upload timetables, and configure school settings.</p>
+                <div class="card-title">👥 Accounts</div>
+                <p>Create and manage teacher, principal and student sign-ins. Timetables are edited in the Timetable Editor.</p>
                 <div id="adminPanelContent" class="mt-12">
                     <!-- Loaded dynamically via admin.js -->
                     <div style="text-align:center; padding: 20px; color: var(--text-muted);">
                         Module under construction.
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- ====== TAB: SUBSTITUTIONS ====== -->
+        <section class="tab-content" id="tab-substitutions">
+            <div class="card">
+                <div class="card-title">🔁 Substitutions</div>
+                <div id="substitutionsContent" class="mt-12"></div>
             </div>
         </section>
 
@@ -492,6 +498,7 @@
     <script src="js/tour.js?v=7.6" defer></script>
     <script src="js/timetable.js?v=7.6" defer></script>
     <script src="js/admin.js?v=7.6" defer></script>
+    <script src="js/substitutions.js?v=7.6" defer></script>
     <script src="js/principal.js?v=7.6" defer></script>
     <script src="js/notifications.js?v=7.6" defer></script>
     <script src="js/app.js?v=7.6" defer></script>
@@ -546,6 +553,7 @@
             <img id="lightbox-img" class="lightbox-image" src="" alt="Activity Photo" />
         </div>
     </div>
+    <script src="js/account-bar.js"></script>
 </body>
 
 </html>

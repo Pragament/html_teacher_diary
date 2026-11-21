@@ -22,13 +22,10 @@ window.onAppReady = function(callback) {
 };
 
 async function boot() {
-    const isOfflineMode = localStorage.getItem('offlineMode') === 'true';
-    if (isOfflineMode) {
-        // If offline mode is enabled, we skip the school connect flow
-        // and just dispatch appReady so the rest of the app can load
-        triggerAppReady({ mode: 'offline' });
-        return;
-    }
+    // Offline/demo bypass modes were removed: every user must sign in with a real Supabase account.
+    // Clear any stale flags left by older versions so they can never skip authentication.
+    localStorage.removeItem('offlineMode');
+    localStorage.removeItem('demoUser');
 
     // Detect OAuth callback: Supabase returns access_token in URL hash
     // In this case, let Supabase SDK handle token exchange - do NOT redirect away
@@ -76,6 +73,12 @@ async function boot() {
         // Verify with remote json
         await verifyAndConnectSchool(storedSchool.schoolCode);
     } else {
+        // One shared school/project configured -> connect automatically (teachers do not need to type a code).
+        const soleCode = await getSoleSchoolCode();
+        if (soleCode) {
+            await verifyAndConnectSchool(soleCode);
+            return;
+        }
         // Check if we are on dashboard or slow_learner without a school, if so, redirect to index
         if (window.location.pathname.endsWith('dashboard.html') || window.location.pathname.endsWith('slow_learner.html')) {
              window.location.href = 'index.html';
@@ -90,6 +93,16 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
 } else {
     boot();
+}
+
+async function getSoleSchoolCode() {
+    try {
+        const response = await fetch('config/schools.v1.json', { cache: 'no-store' });
+        if (!response.ok) return null;
+        const schools = await response.json();
+        const active = Object.keys(schools).filter(k => schools[k] && schools[k].status === 'active');
+        return active.length === 1 ? active[0] : null;
+    } catch (e) { return null; }
 }
 
 async function verifyAndConnectSchool(code) {
@@ -108,6 +121,11 @@ async function verifyAndConnectSchool(code) {
         if (!response.ok) throw new Error('Failed to fetch school configuration');
         
         const schools = await response.json();
+        // A stale/unknown stored code falls back to the only configured school (single shared project).
+        if (!schools[code]) {
+            const active = Object.keys(schools).filter(k => schools[k] && schools[k].status === 'active');
+            if (active.length === 1) code = active[0];
+        }
         const schoolConfig = schools[code];
 
         if (!schoolConfig) {
@@ -139,8 +157,12 @@ async function verifyAndConnectSchool(code) {
         }
 
         // Initialize Supabase
-        if (window.supabase) {
-            window.App.supabase = window.supabase.createClient(schoolConfig.supabaseUrl, schoolConfig.anonKey);
+        // Reuse one client per project (several GoTrue clients on one storage key fight over the session lock).
+        if (window.supabase && !(window.App.supabase && window.App.supabaseUrl === schoolConfig.supabaseUrl)) {
+            window.App.supabase = window.supabase.createClient(schoolConfig.supabaseUrl, schoolConfig.anonKey, {
+                auth: { persistSession: true, autoRefreshToken: true, storageKey: 'school-auth' }
+            });
+            window.App.supabaseUrl = schoolConfig.supabaseUrl;
         }
 
         // Store active school state
