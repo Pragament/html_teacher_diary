@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teacher-diary-v62';
+const CACHE_NAME = 'teacher-diary-v64-substitutions';
 const ASSETS = [
     './',
     './index.html',
@@ -25,6 +25,7 @@ const ASSETS = [
     './js/tour.js',
     './js/timetable.js',
     './js/admin.js',
+    './js/substitutions.js',
     './js/principal.js',
     './js/notifications.js',
     './js/slow_learner.js',

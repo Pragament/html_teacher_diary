@@ -71,7 +71,7 @@ async function renderDailyTab() {
         try {
             const fetched = await Promise.race([
                 fetchTodayTimetable(dateStr),
-                new Promise(resolve => setTimeout(() => resolve({}), 1200))
+                new Promise(resolve => setTimeout(() => resolve({}), 8000))
             ]);
             if (fetched) timetableMap = fetched;
         } catch (err) {
@@ -89,6 +89,13 @@ async function renderDailyTab() {
         <div>Files</div>
     </div>`;
 
+    // Teachers / HODs only see the periods the principal assigned to them for this date.
+    const viewerRole = window.currentUserRole || localStorage.getItem('userRole') || 'teacher';
+    const restrictToAssigned = ['teacher', 'hod'].includes(viewerRole) && window.timetableLoaded === true;
+    if (window.timetableLoadError && ['teacher', 'hod'].includes(viewerRole)) {
+        container.insertAdjacentHTML('beforeend', `<div class="timetable-warning" style="grid-column:1/-1;padding:10px 14px;margin:8px 0;border-radius:8px;background:#fef3c7;color:#92400e;font-size:13px;">⚠️ Could not load your timetable (${escHtml(window.timetableLoadError)}). Showing all periods - reload to retry.</div>`);
+    }
+
     for (let i = 1; i <= periodsPerDay; i++) {
         const existing = periods.find(p => p.periodNumber === i) || {
             periodNumber: i, classSection: '', subject: '',
@@ -101,6 +108,12 @@ async function renderDailyTab() {
         const classwork = existing.classwork || '';
         const homework = existing.homework || '';
         const existingFiles = existing.files || [];
+        const hasContent = !!(classwork || homework || existingFiles.length);
+        const isUnassigned = restrictToAssigned && !timetableMap[i] && !hasContent;
+        const timeLabel = (timetable.startTime && timetable.endTime)
+            ? `<span class="period-time" style="font-size:11px;color:var(--text-muted);margin-left:6px;white-space:nowrap;">${timetable.startTime}–${timetable.endTime}</span>` : '';
+        const coverNote = timetable.substituteFor
+            ? `<span title="You are covering this period" style="font-size:11px;margin-left:6px;padding:1px 6px;border-radius:999px;background:#fef3c7;color:#92400e;white-space:nowrap;">🔁 covering ${escHtml(timetable.substituteFor)}</span>` : '';
         
         // Initialize file state
         window.periodFiles = window.periodFiles || {};
@@ -167,7 +180,7 @@ async function renderDailyTab() {
             </div>
             <div class="period-card-header" onclick="toggleCard(this, ${i})" style="cursor:pointer; display: flex; align-items: start;">
                 <div style="display:flex; align-items:center; gap:4px; height: 32px;">
-                    <span class="period-badge">P${i} <span style="opacity:0.8; font-size:11px; margin-left:4px; display:none;">(${i}/${periodsPerDay})</span></span>
+                    <span class="period-badge">P${i} <span style="opacity:0.8; font-size:11px; margin-left:4px; display:none;">(${i}/${periodsPerDay})</span></span>${timeLabel}${coverNote}
                     <span class="compact-chevron" style="font-size:12px; color:var(--text-muted);">&#9660;</span>
                     <span class="compact-summary" style="display: none; font-size: 13px; color: var(--text-muted); margin-left: 8px;">${summaryStr}</span>
                 </div>
@@ -210,7 +223,15 @@ async function renderDailyTab() {
         card.querySelector('.daily-section-input').addEventListener('input', updateSummary);
         card.querySelector('.daily-subject-input').addEventListener('input', updateSummary);
         
+        if (isUnassigned) {
+            card.dataset.unassigned = '1';
+            card.style.setProperty('display', 'none', 'important');
+        }
         container.appendChild(card);
+    }
+
+    if (restrictToAssigned && !container.querySelector('.period-card:not([data-unassigned])')) {
+        container.insertAdjacentHTML('beforeend', `<div class="empty-state" style="grid-column:1/-1;padding:24px;text-align:center;color:var(--text-muted);">No periods are assigned to you on ${formatDate(dateStr)}. Your timetable is set by the principal.</div>`);
     }
     
     const dailyStatus = document.getElementById('dailyStatus');
@@ -366,11 +387,16 @@ function updateViewModeClasses() {
 
 function setFocusPeriod(num) {
     const periodsPerDay = window.getSettings ? window.getSettings().periodsPerDay : 8;
+    const cards = document.querySelectorAll('.period-card');
+    const prevFocus = window.currentFocusedPeriod || 1;
+    const stepDir = num >= prevFocus ? 1 : -1;
+    const isHiddenPeriod = (n) => { const c = cards[n - 1]; return !!(c && c.dataset.unassigned === '1'); };
+    while (num >= 1 && num <= periodsPerDay && isHiddenPeriod(num)) num += stepDir;
+    if (num < 1 || num > periodsPerDay) num = prevFocus;
     if (num < 1) num = 1;
     if (num > periodsPerDay) num = periodsPerDay;
     window.currentFocusedPeriod = num;
-    
-    const cards = document.querySelectorAll('.period-card');
+
     cards.forEach((card, idx) => {
         if (idx + 1 === num) {
             // If already active in compact mode, clicking header toggles it off
@@ -421,7 +447,7 @@ function renderDailyControls() {
     
     const statsHtml = `
         <div class="completion-stats">
-            <div><span id="completedCount">0</span> / ${periodsPerDay} Completed</div>
+            <div><span id="completedCount">0</span> / <span id="totalCount">${periodsPerDay}</span> Completed</div>
             <div class="stats-bar-container"><div id="completedBar" class="stats-bar-fill" style="width: 0%"></div></div>
         </div>
     `;
@@ -458,6 +484,11 @@ function updateStatusBar() {
     
     cards.forEach((card, idx) => {
         const periodNum = idx + 1;
+        if (card.dataset.unassigned === '1') {
+            const hiddenPill = document.getElementById(`status-pill-${periodNum}`);
+            if (hiddenPill) hiddenPill.style.display = 'none';
+            return;
+        }
         const workVal = card.querySelector('.daily-work')?.value?.trim() || '';
         const homeVal = card.querySelector('.daily-home')?.value?.trim() || '';
         
@@ -492,8 +523,11 @@ function updateStatusBar() {
     const countEl = document.getElementById('completedCount');
     const barEl = document.getElementById('completedBar');
     if (countEl) countEl.textContent = completed;
+    const visibleTotal = Array.from(cards).filter(c => c.dataset.unassigned !== '1').length;
+    const totalEl = document.getElementById('totalCount');
+    if (totalEl) totalEl.textContent = visibleTotal;
     if (barEl) {
-        const total = window.getSettings ? window.getSettings().periodsPerDay : 8;
+        const total = visibleTotal || (window.getSettings ? window.getSettings().periodsPerDay : 8);
         barEl.style.width = Math.round((completed / total) * 100) + '%';
     }
 }
@@ -790,6 +824,7 @@ async function saveDaily(options = {}) {
 
     try {
         for (const card of cards) {
+            if (card.dataset.unassigned === '1') continue;   // not this teacher's period
             const classDropdown = card.querySelector('.daily-class-dropdown');
             const periodNum = parseInt(classDropdown?.dataset.period || '0');
             const classDropdownVal = classDropdown?.value || '';
@@ -1408,12 +1443,31 @@ window.hideFetchConfigModal = hideFetchConfigModal;
 // ================================================================
 //  ROLE BASED UI
 // ================================================================
+function activateTabByName(tab) {
+    document.querySelectorAll('.tab-nav button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-content').forEach(el => { el.classList.remove('active'); el.style.display = 'none'; });
+    const c = document.getElementById('tab-' + tab);
+    if (c) { c.classList.add('active'); c.style.display = ''; }
+    try {
+        if (tab === 'principal' && typeof renderPrincipalDashboard === 'function') renderPrincipalDashboard();
+        if (tab === 'substitutions' && typeof renderSubstitutionsTab === 'function') renderSubstitutionsTab();
+    } catch (e) { console.warn(e); }
+}
+window.activateTabByName = activateTabByName;
+
 function applyRoleBasedUI(role) {
     const adminTabBtn = document.querySelector('[data-tab="admin"]');
     const principalTabBtn = document.querySelector('[data-tab="principal"]');
+    // The admin does not teach: no Daily Entry / My Activities for them. They land on the Principal Dashboard.
+    const isAdminOnly = (role === 'admin' || role === 'super_admin');
+    ['daily', 'view'].forEach(t => { const b = document.querySelector('[data-tab="' + t + '"]'); if (b) b.style.display = isAdminOnly ? 'none' : ''; });
+    if (isAdminOnly && !window._userPickedTab) activateTabByName('principal');
+    const subBtn = document.querySelector('[data-tab="substitutions"]');
+    if (subBtn) subBtn.style.display = ['teacher', 'hod', 'principal', 'vice_principal', 'admin', 'super_admin'].includes(role) ? 'inline-block' : 'none';
     
     if (adminTabBtn) {
-        adminTabBtn.style.display = (role === 'admin' || role === 'super_admin') ? 'inline-block' : 'none';
+        // "Accounts" panel: admin/super_admin create principals+teachers+students, principal/vice_principal create teachers
+        adminTabBtn.style.display = ['admin', 'super_admin', 'principal', 'vice_principal'].includes(role) ? 'inline-block' : 'none';
     }
     
     if (principalTabBtn) {

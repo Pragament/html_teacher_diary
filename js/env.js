@@ -1,5 +1,5 @@
-// Generated from .env file
+// Shared Supabase project (same as Timetable Editor and Ledger). Publishable key only - never a service-role key.
 window.ENV = {
-    SUPABASE_URL: 'https://ndajyhculegzhxqwythx.supabase.co',
-    SUPABASE_KEY: 'sb_publishable_4HO0WCszOpLVrxLbx0Io_Q_AbeN86ev'
+    SUPABASE_URL: 'https://lntvobybgpnsixyxigku.supabase.co',
+    SUPABASE_KEY: 'sb_publishable_2Z_SZDYa5ohZ_KKIskcXSQ_ZfppUo4r'
 };

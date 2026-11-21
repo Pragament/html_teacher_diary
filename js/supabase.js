@@ -25,7 +25,7 @@ function getSupabaseClient() {
 
     if (!supabaseClient) {
         try {
-            supabaseClient = window.supabase.createClient(url, window.ENV.SUPABASE_KEY);
+            supabaseClient = window.supabase.createClient(url, window.ENV.SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'school-auth' } });
             supabaseClientConfig = configKey;
         } catch {
             return null;
